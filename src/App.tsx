@@ -11,5 +11,9 @@ export default function App() {
 
   const canvasRef = useCanvas(draw)
 
-  return <canvas ref={canvasRef} />
+  return <>
+    <select>
+    </select>
+    <canvas ref={canvasRef} />
+  </>
 }
