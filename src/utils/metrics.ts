@@ -62,8 +62,8 @@ export type Metric = {
   christoffel: (args: ChristoffelArgs) => Christoffel;
 }
 
-const createZeroMetric: () => MetricTensor = () => Array(4).map(() => Array(4).fill(0)) as MetricTensor
-const createZeroChristoffel: () => Christoffel = () => Array(4).map(() => Array(4).map(() => Array(4).fill(0))) as Christoffel
+const createZeroMetric: () => MetricTensor = () => Array(4).fill(0).map(() => Array(4).fill(0)) as MetricTensor
+const createZeroChristoffel: () => Christoffel = () => Array(4).fill(0).map(() => Array(4).fill(0).map(() => Array(4).fill(0))) as Christoffel
 
 const minkowskiMetric = createZeroMetric()
 minkowskiMetric[0][0] = -1
@@ -82,6 +82,7 @@ export const minkowski: Metric = {
   christoffel: () => minkowskiChristoffel
 }
 
+// theta is the angle from north
 export const schwarzschild: Metric = {
   description: "Metric describing space near an uncharged, non-rotating mass",
   coordinates: ["t", "r", String.raw`\theta`, String.raw`\phi`],

@@ -1,12 +1,12 @@
 // https://youtu.be/bI-FS7aZJpY
-import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import { InlineMath } from "react-katex"
 
 const siUnits = ["s", "m", "kg", "A", "K"] as const
 const planckUnits = ["c", "G", "h", "e", "k"] as const
 
-type SiUnits = typeof siUnits[number]
-type PlanckUnits = typeof planckUnits[number]
+export type SiUnits = typeof siUnits[number]
+export type PlanckUnits = typeof planckUnits[number]
 
 const constants = [
   2.998E+08,
@@ -27,10 +27,10 @@ type UnitInputProps = ({
 }) & {
   valueUnits: "si" | "planck"
   value: number
-  setValue: Dispatch<SetStateAction<number>>
+  setValue: (val: number) => void
 }
 
-const planckToSi = [
+export const planckToSi = [
   [-1, -2, -1, 4, -2],
   [1, 3, 2, -3, 2],
   [0, -1, 1, -1, 1],
@@ -38,7 +38,7 @@ const planckToSi = [
   [0, 0, 0, 0, -1],
 ] as const
 
-const siToPlank = [
+export const siToPlanck = [
   [-2.5, -1.5, 0.5, 3, 2.5],
   [0.5, 0.5, -0.5, -0.5, -0.5],
   [0.5, 0.5, 0.5, 0, 0.5],
@@ -46,10 +46,10 @@ const siToPlank = [
   [0, 0, 0, 0, -1],
 ] as const
 
-type UnitVector = [number, number, number, number, number]
+export type UnitVector = [number, number, number, number, number]
 
-function convertUnit(
-  matrix: typeof siToPlank | typeof planckToSi,
+export function convertUnit(
+  matrix: typeof siToPlanck | typeof planckToSi,
   unit: UnitVector
 ): UnitVector {
   const result: UnitVector = Array(5).fill(0) as UnitVector;
@@ -65,32 +65,32 @@ function convertUnit(
   return result;
 }
 
-function makeUnit(
+export function makeUnit(
   unit: [SiUnits | PlanckUnits, number][]
 ) {
   return unit.map(([u, exponent]) => {
     if (exponent == 0) return ""
 
-    let unit: string = u
-    switch (unit) {
+    let unitText: string = u
+    switch (unitText) {
       case "h":
-        unit = String.raw`\hbar`
+        unitText = String.raw`\hbar`
         break
       case "e":
-        unit = String.raw`\epsilon_0`
+        unitText = String.raw`\epsilon_0`
         break
       case "k":
-        unit = "k_B"
+        unitText = "k_B"
         break
     }
-    if (exponent != 1) unit += `^{${exponent}}`
-    return unit
+    if (exponent != 1) unitText += `^{${exponent}}`
+    return unitText
   }).join(" ")
 }
 
-function convertValue(value: number, vector: UnitVector, direction: "toSi" | "fromSi") {
+export function convertValue(value: number, vector: UnitVector, direction: "toSi" | "toPlanck") {
   let constantsUsed = constants
-  if (direction === "fromSi") {
+  if (direction === "toPlanck") {
     constantsUsed = constantsUsed.map(value => 1 / value)
   }
 
@@ -110,7 +110,7 @@ export default function UnitInput({ origin, si, planck, valueUnits, value, setVa
         const unitIndex = siUnits.indexOf(unit)
         siVector[unitIndex] = exponent
       })
-      planckVector = convertUnit(siToPlank, siVector)
+      planckVector = convertUnit(siToPlanck, siVector)
     }
     else if (origin === "planck") {
       planck.forEach(([unit, exponent]) => {
@@ -152,41 +152,47 @@ export default function UnitInput({ origin, si, planck, valueUnits, value, setVa
     return [siText, planckText]
   }, [siData, planckData])
 
-  const [siValue, setSiValue] = useState<number>(0)
-  const [planckValue, setPlanckValue] = useState<number>(0)
+  const planckValue = useMemo(() => {
+    if (valueUnits === "planck") {
+      return value
+    }
+    else if (valueUnits === "si") {
+      return convertValue(value, planckVector, "toPlanck")
+    }
+  }, [valueUnits, value, planckVector])
 
-  useEffect(() => {
-    if (valueUnits === "si") {
-      setValue(siValue)
+  const siValue = useMemo(() => {
+    if (valueUnits === "planck") {
+      return convertValue(value, planckVector, "toSi")
     }
-    else if (valueUnits === "planck") {
-      setValue(planckValue)
+    else if (valueUnits === "si") {
+      return value
     }
-  }, [siValue, planckValue, valueUnits, setValue])
+  }, [valueUnits, value, planckVector])
 
-  useEffect(() => {
-    if (valueUnits === "si") {
-      setSiValue(value)
-    }
-    else if (valueUnits === "planck") {
-      setPlanckValue(value)
-    }
-  }, [setSiValue, setPlanckValue, valueUnits, value])
-
-  return <div>
-    <label>
-      <input type="number" value={siValue} onChange={e => {
-        const value = +e.target.value
-        setSiValue(value)
-        setPlanckValue(convertValue(value, planckVector, "fromSi"))
-      }} /> <InlineMath math={siText} />
-    </label>
+  return <div className="flex gap-6">
     <label>
       <input type="number" value={planckValue} onChange={e => {
         const value = +e.target.value
-        setPlanckValue(value)
-        setSiValue(convertValue(value, planckVector, "toSi"))
+
+        if (valueUnits === "planck") {
+          setValue(value)
+        }
+        else if (valueUnits === "si") {
+          setValue(convertValue(value, planckVector, "toSi"))
+        }
       }} /> <InlineMath math={planckText} />
     </label >
+    <label>
+      <input type="number" value={siValue} onChange={e => {
+        const value = +e.target.value
+        if (valueUnits === "planck") {
+          setValue(convertValue(value, planckVector, "toPlanck"))
+        }
+        else if (valueUnits === "si") {
+          setValue(value)
+        }
+      }} /> <InlineMath math={siText} />
+    </label>
   </div>
 }
