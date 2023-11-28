@@ -5,8 +5,6 @@ import { BlockMath, InlineMath } from 'react-katex'
 import { schwarzschild } from "./utils/metrics"
 import { setArrayState } from "./utils/utils"
 
-const metric = schwarzschild
-
 const distanceUnitTextSi = makeUnit([["m", 1]] as [SiUnits, number][])
 const distanceUnitTextPlanck = makeUnit([["c", -1.5], ["G", 0.5], ["h", 0.5]] as [PlanckUnits, number][])
 const distanceVectorPlanck = [-1.5, 0.5, 0.5, 0, 0] as UnitVector
@@ -44,7 +42,7 @@ export default function App() {
   ])
 
   const initialVelocitySize = useMemo(() => {
-    const metricTensor = metric.metric({
+    const metricTensor = schwarzschild.metric({
       r: initialCoordinates[1],
       rs: schwarzschildRadius,
       theta: initialCoordinates[2]
@@ -52,30 +50,63 @@ export default function App() {
 
     let sum = 0
     initialVelocity.forEach((a, aI) =>
-      initialVelocity.forEach((b, bI) =>
-        sum += a * b * metricTensor[aI][bI]
-      )
+      sum += a * a * metricTensor[aI][aI]
     )
 
-    return sum
+    return Math.sqrt(sum)
   }, [initialVelocity, schwarzschildRadius, initialCoordinates])
   const initialVelocitySizeSi = useMemo(() => convertValue(initialVelocitySize, velocityVectorPlanck, "toSi"), [initialVelocitySize])
+
 
   const [scaleSi, setScaleSi] = useState(10) // 1 pixel = 1 m
   const scalePlanck = useMemo(() => convertValue(scaleSi, distanceVectorPlanck, "toPlanck"), [scaleSi])
 
   const [coordinates, setCoordinates] = useState([...initialCoordinates])
   const [velocity, setVelocity] = useState([...initialVelocity])
+  const velocitySize = useMemo(() => {
+    const metricTensor = schwarzschild.metric({
+      r: initialCoordinates[1],
+      rs: schwarzschildRadius,
+      theta: initialCoordinates[2]
+    })
+
+    let sum = 0
+    velocity.forEach((a, aI) =>
+      velocity.forEach((b, bI) =>
+        sum += a * b * metricTensor[aI][bI]
+      )
+    )
+
+    return Math.sqrt(sum)
+  }, [velocity, schwarzschildRadius, initialCoordinates])
+  const velocitySizeSi = useMemo(() => convertValue(velocitySize, velocityVectorPlanck, "toSi"), [velocitySize])
 
   useEffect(() => {
-    setCoordinates([...initialCoordinates])
-  }, [initialCoordinates])
+    const metricTensor = schwarzschild.metric({ r: initialCoordinates[1], rs: schwarzschildRadius, theta: initialCoordinates[2] })
+    initialVelocity[0] = -Math.sqrt(
+      -(
+        1 +
+        metricTensor[1][1] * initialVelocity[1] * initialVelocity[1] +
+        metricTensor[2][2] * initialVelocity[2] * initialVelocity[2] +
+        metricTensor[3][3] * initialVelocity[3] * initialVelocity[3]
+      )
+      / metricTensor[0][0]
+    )
 
-  useEffect(() => {
-    setVelocity([...initialVelocity])
-  }, [initialVelocity])
+    setInitialVelocity([...initialVelocity])
+  }, [initialVelocity, initialCoordinates, schwarzschildRadius])
 
   const [playing, setPlaying] = useState(false)
+
+  useEffect(() => {
+    if (playing) return
+    setCoordinates([...initialCoordinates])
+  }, [initialCoordinates, playing])
+
+  useEffect(() => {
+    if (playing) return
+    setVelocity([...initialVelocity])
+  }, [initialVelocity, playing])
 
   const [frequency, setFrequency] = useState(30)
   const period = useMemo(() => 1 / frequency, [frequency])
@@ -85,7 +116,7 @@ export default function App() {
   useEffect(() => {
     if (!playing) return
     const interval = setInterval(() => {
-      const christoffel = metric.christoffel({
+      const christoffel = schwarzschild.christoffel({
         r: coordinates[1],
         rs: schwarzschildRadius,
         m: weight,
@@ -154,23 +185,29 @@ export default function App() {
     <p>Weight</p>
     <UnitInput origin="si" si={[["kg", 1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={weight} setValue={setWeight} />
 
+    <br />
     <p>Schwarzschild radius <InlineMath math={`r_s = ${schwarzschildRadius} ${distanceUnitTextPlanck} = ${schwarzschildRadiusSi} ${distanceUnitTextSi}`} /></p>
 
     <p>Radius</p>
     <UnitInput origin="si" si={[["m", 1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={radius} setValue={value => setRadius(+value)} />
     <button onClick={() => setRadius(schwarzschildRadius)}>Set to <InlineMath math="r_s" /></button>
 
+    <br />
+    <br />
     <p>Initial coordinates</p>
     <UnitInput origin="si" si={[["m", 1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialCoordinates[1]} setValue={value => setArrayState(setInitialCoordinates, value, 1)} />
     <UnitInput origin="si" si={[]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialCoordinates[2]} setValue={value => setArrayState(setInitialCoordinates, value, 2)} />
     <UnitInput origin="si" si={[]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialCoordinates[3]} setValue={value => setArrayState(setInitialCoordinates, value, 3)} />
 
+    <br />
     {/* TODO: units? */}
-    <p>Initial velocity, <InlineMath math={String.raw`|V_0| = V^a_0 V^b_0 g_{ab} = ${initialVelocitySize} ${velocityUnitTextPlanck} = ${initialVelocitySizeSi} ${velocityUnitTextSi}`} /></p>
+    <p>Initial velocity: <InlineMath math={String.raw`(${initialVelocity[0]}, ${initialVelocity[1]}, ${initialVelocity[2]}, ${initialVelocity[3]})`} />, <InlineMath math={String.raw`|U| = \sqrt{U^a U^b g_{ab}} = ${initialVelocitySize} ${velocityUnitTextPlanck} = ${initialVelocitySizeSi} ${velocityUnitTextSi}`} /></p>
+    {initialVelocitySize > 1 && <p className="text-red-600">Warning: <InlineMath math="v > c" /></p>}
     <UnitInput origin="si" si={[["m", 1], ["s", -1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialVelocity[1]} setValue={value => setArrayState(setInitialVelocity, value, 1)} />
-    <UnitInput origin="si" si={[["s", -1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialVelocity[2]} setValue={value => setArrayState(setInitialVelocity, value, 2)} />
-    <UnitInput origin="si" si={[["s", -1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialVelocity[3]} setValue={value => setArrayState(setInitialVelocity, value, 3)} />
+    <UnitInput origin="si" si={[["m", 1], ["s", -1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialVelocity[2]} setValue={value => setArrayState(setInitialVelocity, value / initialCoordinates[1], 2)} />
+    <UnitInput origin="si" si={[["m", 1], ["s", -1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialVelocity[3]} setValue={value => setArrayState(setInitialVelocity, value / initialCoordinates[1], 3)} />
 
+    <br />
     <label>
       Frequency:{" "}
       <input type="number" min="0" max="200" value={frequency} onChange={e => setFrequency(+e.target.value)} /> <InlineMath math="Hz" />
@@ -191,12 +228,15 @@ export default function App() {
       }}>reset</button>
     </div>
 
+    <br />
     <div>
-      <p>Coordinates: ({coordinates[0]}, {coordinates[1]}, {coordinates[2]}, {coordinates[3]})</p>
-      <p>Velocity: ({velocity[0]}, {velocity[1]}, {velocity[2]}, {velocity[3]})</p>
+      <p>Coordinates: <InlineMath math={String.raw`(${coordinates[0]}, ${coordinates[1]}, ${coordinates[2]}, ${coordinates[3]})`} /></p>
+      <p>Velocity: <InlineMath math={String.raw`(${velocity[0]}, ${velocity[1]}, ${velocity[2]}, ${velocity[3]})`} />, <InlineMath math={String.raw`|U| = \sqrt{U^a U^b g_{ab}} = ${velocitySize} ${velocityUnitTextPlanck} = ${velocitySizeSi} ${velocityUnitTextSi}`} /></p>
     </div>
 
+    <br />
     <canvas ref={canvasRef} width="600" height="450" className="border" />
+    <br />
     <div className="inline-flex flex-col">
       <span>
         <button onClick={() => setScaleSi(prev => prev / scaleDiffSmall)}>+</button> <button onClick={() => setScaleSi(prev => prev * scaleDiffSmall)}>-</button>
@@ -228,5 +268,5 @@ free fall towards sun
  - weight: 4e30 si
  - radius: 7e11 si
  - distance (x^1): 1e13 si
- - time scale: 1e34
+ - time scale: 1e93
 */

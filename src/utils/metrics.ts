@@ -1,5 +1,6 @@
 // using natural units (c, G set = 1)
 // using -, +, +, +
+//  => negative: ds^2 = -c (d τ)^2
 type MinkowskiMetricArgs = never
 type SchwarzschildMetricArgs = {
   r: number,
@@ -65,23 +66,6 @@ export type Metric = {
 const createZeroMetric: () => MetricTensor = () => Array(4).fill(0).map(() => Array(4).fill(0)) as MetricTensor
 const createZeroChristoffel: () => Christoffel = () => Array(4).fill(0).map(() => Array(4).fill(0).map(() => Array(4).fill(0))) as Christoffel
 
-const minkowskiMetric = createZeroMetric()
-minkowskiMetric[0][0] = -1
-minkowskiMetric[1][1] = 1
-minkowskiMetric[2][2] = 1
-minkowskiMetric[3][3] = 1
-
-const minkowskiChristoffel = createZeroChristoffel()
-
-export const minkowski: Metric = {
-  description: "Metric describing flat space",
-  coordinates: ["t", "x", "y", "z"],
-  tensorEqation: String.raw`\eta ={\begin{pmatrix}-1&0&0&0\\0&1&0&0\\0&0&1&0\\0&0&0&1\end{pmatrix}}`,
-  christoffelEqations: [String.raw`TODO`],
-  metric: () => minkowskiMetric,
-  christoffel: () => minkowskiChristoffel
-}
-
 // theta is the angle from north
 export const schwarzschild: Metric = {
   description: "Metric describing space near an uncharged, non-rotating mass",
@@ -110,6 +94,13 @@ export const schwarzschild: Metric = {
     christoffel[2][3][3] = -Math.sin(theta) * Math.cos(theta) // theta phi phi
     christoffel[3][1][3] = 1 / r // phi r phi
     christoffel[3][2][3] = Math.cos(theta) / Math.sin(theta) // phi theta phi
+
+    // FIXME: symmetry?
+    //christoffel[0][0][1] = christoffel[0][1][0]
+    //christoffel[2][2][1] = christoffel[2][1][2]
+    //christoffel[3][3][1] = christoffel[3][1][3]
+    //christoffel[3][3][2] = christoffel[3][2][3]
+
 
     return christoffel
   }
