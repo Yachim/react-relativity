@@ -16,6 +16,7 @@ const velocityUnitTextPlanck = makeUnit([["c", 1]] as [PlanckUnits, number][])
 const velocityVectorPlanck = [1, 0, 0, 0, 0] as UnitVector
 
 const scaleDiff = 10 // divided/multiplied
+const scaleDiffSmall = 2 // divided/multiplied
 const particleSize = 10
 
 export default function App() {
@@ -23,6 +24,10 @@ export default function App() {
 
   const schwarzschildRadius = useMemo(() => 2 * weight, [weight])
   const schwarzschildRadiusSi = useMemo(() => convertValue(schwarzschildRadius, distanceVectorPlanck, "toSi"), [schwarzschildRadius])
+  const [radius, setRadius] = useState(0)
+  useEffect(() => {
+    if (radius < schwarzschildRadius) setRadius(schwarzschildRadius)
+  }, [radius, schwarzschildRadius])
 
   const [initialCoordinates, setInitialCoordinates] = useState([
     0,
@@ -75,6 +80,8 @@ export default function App() {
   const [frequency, setFrequency] = useState(30)
   const period = useMemo(() => 1 / frequency, [frequency])
 
+  const [timeScale, setTimeScale] = useState(1)
+
   useEffect(() => {
     if (!playing) return
     const interval = setInterval(() => {
@@ -85,23 +92,23 @@ export default function App() {
         theta: coordinates[2],
       })
 
-      const newCoordinates = coordinates.map((coord, i) =>
-        coord + period * velocity[i])
+      const newCoordinates = coordinates.map((coord, a) =>
+        coord + period * timeScale * velocity[a])
 
       const newVelocity = velocity.map((vel, a) => {
         let gammaTotal = 0
         christoffel[a].forEach((cRow, b) =>
           cRow.forEach((gamma, c) => gammaTotal += gamma * velocity[b] * velocity[c])
         )
-        return vel - gammaTotal
+        return vel - gammaTotal * period * timeScale
       })
 
       setCoordinates([...newCoordinates])
       setVelocity([...newVelocity])
-    })
+    }, period)
 
     return () => clearInterval(interval)
-  }, [coordinates, velocity, period, playing, schwarzschildRadius, weight])
+  }, [coordinates, velocity, period, playing, schwarzschildRadius, weight, timeScale])
 
   // assuming view from top and theta initialCoordinates[2] = pi/2
   // TODO: theta
@@ -113,7 +120,7 @@ export default function App() {
 
     ctx.fillStyle = '#000000'
     ctx.beginPath()
-    ctx.arc(blackHoleX, blackHoleY, schwarzschildRadius / scalePlanck, 0, 2 * Math.PI)
+    ctx.arc(blackHoleX, blackHoleY, radius / scalePlanck, 0, 2 * Math.PI)
     ctx.closePath()
     ctx.fill()
 
@@ -131,8 +138,8 @@ export default function App() {
 
   return <>
     <p>Geodesic equation:</p>
-    <BlockMath math={String.raw`\frac{d^2 x^a}{d \lambda} + \Gamma^a_{bc} \frac{dx^b}{d \lambda} \frac{dx^c}{d \lambda} = 0`} />
-    <BlockMath math={String.raw`\frac{d^2 x^a}{d \lambda} = - \Gamma^a_{bc} \frac{dx^b}{d \lambda} \frac{dx^c}{d \lambda}`} />
+    <BlockMath math={String.raw`\frac{d^2 x^a}{d \lambda^2} + \Gamma^a_{bc} \frac{dx^b}{d \lambda} \frac{dx^c}{d \lambda} = 0`} />
+    <BlockMath math={String.raw`\frac{d^2 x^a}{d \lambda^2} = - \Gamma^a_{bc} \frac{dx^b}{d \lambda} \frac{dx^c}{d \lambda}`} />
 
     <p>
       Setting <InlineMath math={String.raw`V^a = \frac{dx^a}{d\lambda}`} />, we can create system of DEs:
@@ -140,14 +147,18 @@ export default function App() {
     <BlockMath math={String.raw`\frac{dx^a}{d\lambda} = V^a`} />
     <BlockMath math={String.raw`\frac{dV^a}{d\lambda} = - \Gamma^a_{bc} V^b V^c`} />
 
-    <p>Using Euler method we get</p>
+    <p>Using Euler method we get:</p>
     <BlockMath math={String.raw`x^a_{n+1} = x^a_n + h V^a_n`} />
-    <BlockMath math={String.raw`V^a_{n+1} = V^a_n - h \Gamma^a_{bc(n)} V^b_n V^c_n`} />
+    <BlockMath math={String.raw`V^a_{n+1} = V^a_n - h \Gamma^a_{bc} V^b_n V^c_n`} />
 
     <p>Weight</p>
     <UnitInput origin="si" si={[["kg", 1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={weight} setValue={setWeight} />
 
     <p>Schwarzschild radius <InlineMath math={`r_s = ${schwarzschildRadius} ${distanceUnitTextPlanck} = ${schwarzschildRadiusSi} ${distanceUnitTextSi}`} /></p>
+
+    <p>Radius</p>
+    <UnitInput origin="si" si={[["m", 1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={radius} setValue={value => setRadius(+value)} />
+    <button onClick={() => setRadius(schwarzschildRadius)}>Set to <InlineMath math="r_s" /></button>
 
     <p>Initial coordinates</p>
     <UnitInput origin="si" si={[["m", 1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialCoordinates[1]} setValue={value => setArrayState(setInitialCoordinates, value, 1)} />
@@ -162,7 +173,14 @@ export default function App() {
 
     <label>
       Frequency:{" "}
-      <input type="number" value={frequency} onChange={e => setFrequency(+e.target.value)} /> Hz
+      <input type="number" min="0" max="200" value={frequency} onChange={e => setFrequency(+e.target.value)} /> <InlineMath math="Hz" />
+    </label>
+
+    <br />
+
+    <label>
+      Time scale:{" "}
+      <input type="number" value={timeScale} onChange={e => setTimeScale(+e.target.value)} /> x
     </label>
 
     <div>
@@ -179,7 +197,36 @@ export default function App() {
     </div>
 
     <canvas ref={canvasRef} width="600" height="450" className="border" />
-    <button onClick={() => setScaleSi(prev => prev / scaleDiff)}>+</button> <button onClick={() => setScaleSi(prev => prev * scaleDiff)}>-</button>
+    <div className="inline-flex flex-col">
+      <span>
+        <button onClick={() => setScaleSi(prev => prev / scaleDiffSmall)}>+</button> <button onClick={() => setScaleSi(prev => prev * scaleDiffSmall)}>-</button>
+      </span>
+      <span>
+        <button onClick={() => setScaleSi(prev => prev / scaleDiff)}>++</button> <button onClick={() => setScaleSi(prev => prev * scaleDiff)}>--</button>
+      </span>
+    </div>
     <InlineMath math={`1 pixel = ${scalePlanck} ${distanceUnitTextPlanck} = ${scaleSi} ${distanceUnitTextSi}`} />
   </>
 }
+
+/*
+Presets
+mercury and sun
+ - weight: 4e30 si
+ - radius: 7e11 si
+ - distance (x^1): 58e15 si
+ - angular vel. (v^3): 1224662 si
+ - timeScale: 1e32
+
+https://commons.wikimedia.org/wiki/File:Newton_versus_Schwarzschild_trajectories.gif
+ - weight: 1e29 si
+ - distance (x^1): 1485 si
+ - velocity (v^?): 8.9e7 si ?????
+ - time scale: 1e34
+
+free fall towards sun
+ - weight: 4e30 si
+ - radius: 7e11 si
+ - distance (x^1): 1e13 si
+ - time scale: 1e34
+*/
