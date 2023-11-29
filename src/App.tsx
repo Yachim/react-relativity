@@ -1,252 +1,149 @@
-import { useEffect, useMemo, useState } from "react"
-import UnitInput, { PlanckUnits, SiUnits, UnitVector, convertValue, makeUnit } from "./UnitInput"
-import useCanvas, { Draw } from "./utils/canvas"
-import { BlockMath, InlineMath } from 'react-katex'
-import { schwarzschild } from "./utils/metrics"
-import { setArrayState } from "./utils/utils"
+import { Canvas, Color, extend, useFrame, useLoader, useThree } from "@react-three/fiber"
+import { useMemo, useRef, useState } from "react"
+import { TextureLoader } from "three"
+import { OrbitControls } from "three/examples/jsm/Addons.js"
+import * as THREE from "three"
 
-const distanceUnitTextSi = makeUnit([["m", 1]] as [SiUnits, number][])
-const distanceUnitTextPlanck = makeUnit([["c", -1.5], ["G", 0.5], ["h", 0.5]] as [PlanckUnits, number][])
-const distanceVectorPlanck = [-1.5, 0.5, 0.5, 0, 0] as UnitVector
+extend({ OrbitControls })
 
-const velocityUnitTextSi = makeUnit([["m", 1], ["s", -1]] as [SiUnits, number][])
-const velocityUnitTextPlanck = makeUnit([["c", 1]] as [PlanckUnits, number][])
-const velocityVectorPlanck = [1, 0, 0, 0, 0] as UnitVector
+const CameraControls = () => {
+  const { camera, gl } = useThree()
+  const controlsRef = useRef()
 
-const scaleDiff = 10 // divided/multiplied
-const scaleDiffSmall = 2 // divided/multiplied
-const particleSize = 10
+  useFrame(() => {
+    controlsRef.current.update()
+  })
 
+  return <orbitControls ref={controlsRef} args={[camera, gl.domElement]} />
+}
+
+type RadialCoordinates = {
+  r: number
+  theta: number // angle from north
+  phi: number // angle around z axis
+}
+
+type CartesianCoordinates = {
+  x: number
+  y: number
+  z: number
+}
+
+type SphereProps = {
+  radius: number
+  color?: Color
+} & Partial<RadialCoordinates>
+
+function radialToCartesian({ r, theta, phi }: Partial<RadialCoordinates>): CartesianCoordinates {
+  const sinTheta = Math.sin(theta ?? 0)
+  const cosTheta = Math.cos(theta ?? 0)
+  const sinPhi = Math.sin(phi ?? 0)
+  const cosPhi = Math.cos(phi ?? 0)
+
+  // this is z-up, threejs uses y-up
+  const x = (r ?? 0) * sinTheta * cosPhi
+  const z = (r ?? 0) * sinTheta * sinPhi
+  const y = (r ?? 0) * cosTheta
+
+  return { x, y, z }
+}
+
+function Sphere({ radius, r, theta, phi, color }: SphereProps) {
+  const { x, y, z } = useMemo(() => radialToCartesian({ r, theta, phi }), [r, theta, phi])
+
+  console.table({ x, y, z })
+  return (
+    <mesh
+      position={[x, y, z]}
+    >
+      <sphereGeometry args={[radius]} />
+      <meshStandardMaterial color={color ?? "#505050"} />
+    </mesh>
+  )
+}
+
+
+const Skybox = () => {
+  // https://www.google.com/search?q=starfield%20texture&tbm=isch&hl=cs&tbs=il:ol&client=firefox-b-d&sa=X&ved=0CAAQ1vwEahcKEwjY1Z_S7OiCAxUAAAAAHQAAAAAQAw&biw=1876&bih=881#imgrc=_DPEDA10Axo3UM
+  // https://stock.adobe.com/cz/license-terms
+  const starfieldTexture = useLoader(TextureLoader, 'https://t3.ftcdn.net/jpg/03/29/54/94/360_F_329549476_gEdfUOnqJFOUYizc9FGQjtBqvuatNgqt.jpg');
+
+  const skyMaterial = new THREE.MeshBasicMaterial({ map: starfieldTexture, side: THREE.BackSide });
+
+  return (
+    <mesh>
+      <sphereGeometry args={[500, 60, 40]} />
+      <meshBasicMaterial {...skyMaterial} />
+    </mesh>
+  );
+};
+
+// weight in solar mass, distance in meters, speed in lightSpeed, time in seconds
+// initial velocity of angles is not in angular velocity, but normal velocity (v = omega * r => omega = v/r)
+//  - v: speed
+//  - omega: angular velocity
+//  - r: radius/distance
 export default function App() {
-  const [weight, setWeight] = useState(0)
+  const [bhWeight, setBhWeight] = useState(0)
+  const [bhRadius, setBhRadius] = useState(1)
 
-  const schwarzschildRadius = useMemo(() => 2 * weight, [weight])
-  const schwarzschildRadiusSi = useMemo(() => convertValue(schwarzschildRadius, distanceVectorPlanck, "toSi"), [schwarzschildRadius])
-  const [radius, setRadius] = useState(0)
-  useEffect(() => {
-    if (radius < schwarzschildRadius) setRadius(schwarzschildRadius)
-  }, [radius, schwarzschildRadius])
+  const [orbitingRadius, setOrbitingRadius] = useState(0.5)
+  const [orbitingDistance, setOrbitingDistance] = useState(3)
+  const [orbitingTheta, setOrbitingTheta] = useState(Math.PI / 2)
+  const [orbitingPhi, setOrbitingPhi] = useState(0)
 
-  const [initialCoordinates, setInitialCoordinates] = useState([
-    0,
-    0,
-    Math.PI / 2,
-    0,
-  ])
+  const [panelVisible, setPanelVisible] = useState<"none" | "math" | "values" | "conversion">("values")
 
-  const [initialVelocity, setInitialVelocity] = useState([
-    0,
-    0,
-    0,
-    0,
-  ])
+  return (
+    <div className="w-full h-full">
+      <Canvas>
+        <CameraControls />
+        <Skybox />
+        <ambientLight />
+        <directionalLight color="white" position={[10, 10, 10]} />
+        <Sphere radius={bhRadius} />
+        <Sphere radius={orbitingRadius} color={"pink"} r={orbitingDistance} theta={orbitingTheta} phi={orbitingPhi} />
+      </Canvas>
+      <div className="w-full absolute top-0 flex flex-col">
+        <div className="p-2 bg-opacity-90 bg-gray-400 flex gap-2">
+          <button onClick={() => setPanelVisible(prev => prev === "math" ? "none" : "math")}>Math</button>
+          <button onClick={() => setPanelVisible(prev => prev === "values" ? "none" : "values")}>Values</button>
+          <button onClick={() => setPanelVisible(prev => prev === "conversion" ? "none" : "conversion")}>Conversion</button>
+        </div>
+        {panelVisible === "values" &&
+          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2">
+            <label>
+              Black hole weight:
+              <input type="number" value={bhWeight} onChange={e => setBhWeight(+e.target.value)} />
+            </label>
+            <label>
+              Black hole radius:
+              <input type="number" value={bhRadius} onChange={e => setBhRadius(+e.target.value)} />
+            </label>
 
-  const initialVelocitySize = useMemo(() => {
-    const metricTensor = schwarzschild.metric({
-      r: initialCoordinates[1],
-      rs: schwarzschildRadius,
-      theta: initialCoordinates[2]
-    })
+            <br />
 
-    let sum = 0
-    initialVelocity.forEach((a, aI) =>
-      sum += a * a * metricTensor[aI][aI]
-    )
-
-    return Math.sqrt(sum)
-  }, [initialVelocity, schwarzschildRadius, initialCoordinates])
-  const initialVelocitySizeSi = useMemo(() => convertValue(initialVelocitySize, velocityVectorPlanck, "toSi"), [initialVelocitySize])
-
-
-  const [scaleSi, setScaleSi] = useState(10) // 1 pixel = 1 m
-  const scalePlanck = useMemo(() => convertValue(scaleSi, distanceVectorPlanck, "toPlanck"), [scaleSi])
-
-  const [coordinates, setCoordinates] = useState([...initialCoordinates])
-  const [velocity, setVelocity] = useState([...initialVelocity])
-  const velocitySize = useMemo(() => {
-    const metricTensor = schwarzschild.metric({
-      r: initialCoordinates[1],
-      rs: schwarzschildRadius,
-      theta: initialCoordinates[2]
-    })
-
-    let sum = 0
-    velocity.forEach((a, aI) =>
-      velocity.forEach((b, bI) =>
-        sum += a * b * metricTensor[aI][bI]
-      )
-    )
-
-    return Math.sqrt(sum)
-  }, [velocity, schwarzschildRadius, initialCoordinates])
-  const velocitySizeSi = useMemo(() => convertValue(velocitySize, velocityVectorPlanck, "toSi"), [velocitySize])
-
-  useEffect(() => {
-    const metricTensor = schwarzschild.metric({ r: initialCoordinates[1], rs: schwarzschildRadius, theta: initialCoordinates[2] })
-    initialVelocity[0] = -Math.sqrt(
-      -(
-        1 +
-        metricTensor[1][1] * initialVelocity[1] * initialVelocity[1] +
-        metricTensor[2][2] * initialVelocity[2] * initialVelocity[2] +
-        metricTensor[3][3] * initialVelocity[3] * initialVelocity[3]
-      )
-      / metricTensor[0][0]
-    )
-
-    setInitialVelocity([...initialVelocity])
-  }, [initialVelocity, initialCoordinates, schwarzschildRadius])
-
-  const [playing, setPlaying] = useState(false)
-
-  useEffect(() => {
-    if (playing) return
-    setCoordinates([...initialCoordinates])
-  }, [initialCoordinates, playing])
-
-  useEffect(() => {
-    if (playing) return
-    setVelocity([...initialVelocity])
-  }, [initialVelocity, playing])
-
-  const [frequency, setFrequency] = useState(30)
-  const period = useMemo(() => 1 / frequency, [frequency])
-
-  const [timeScale, setTimeScale] = useState(1)
-
-  useEffect(() => {
-    if (!playing) return
-    const interval = setInterval(() => {
-      const christoffel = schwarzschild.christoffel({
-        r: coordinates[1],
-        rs: schwarzschildRadius,
-        m: weight,
-        theta: coordinates[2],
-      })
-
-      const newCoordinates = coordinates.map((coord, a) =>
-        coord + period * timeScale * velocity[a])
-
-      const newVelocity = velocity.map((vel, a) => {
-        let gammaTotal = 0
-        christoffel[a].forEach((cRow, b) =>
-          cRow.forEach((gamma, c) => gammaTotal += gamma * velocity[b] * velocity[c])
-        )
-        return vel - gammaTotal * period * timeScale
-      })
-
-      setCoordinates([...newCoordinates])
-      setVelocity([...newVelocity])
-    }, period)
-
-    return () => clearInterval(interval)
-  }, [coordinates, velocity, period, playing, schwarzschildRadius, weight, timeScale])
-
-  // assuming view from top and theta initialCoordinates[2] = pi/2
-  // TODO: theta
-  const draw: Draw = (ctx, frameCount) => {
-    const blackHoleX = ctx.canvas.width / 2
-    const blackHoleY = ctx.canvas.height / 2
-
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-
-    ctx.fillStyle = '#000000'
-    ctx.beginPath()
-    ctx.arc(blackHoleX, blackHoleY, radius / scalePlanck, 0, 2 * Math.PI)
-    ctx.closePath()
-    ctx.fill()
-
-    const x = (coordinates[1] * Math.cos(coordinates[3])) / scalePlanck
-    const y = (coordinates[1] * Math.sin(coordinates[3])) / scalePlanck
-
-    ctx.beginPath()
-    ctx.fillStyle = "#6bdb77"
-    ctx.arc(blackHoleX + x, blackHoleY + y, particleSize, 0, 2 * Math.PI)
-    ctx.closePath()
-    ctx.fill()
-  }
-
-  const canvasRef = useCanvas(draw)
-
-  return <>
-    <p>Geodesic equation:</p>
-    <BlockMath math={String.raw`\frac{d^2 x^a}{d \lambda^2} + \Gamma^a_{bc} \frac{dx^b}{d \lambda} \frac{dx^c}{d \lambda} = 0`} />
-    <BlockMath math={String.raw`\frac{d^2 x^a}{d \lambda^2} = - \Gamma^a_{bc} \frac{dx^b}{d \lambda} \frac{dx^c}{d \lambda}`} />
-
-    <p>
-      Setting <InlineMath math={String.raw`V^a = \frac{dx^a}{d\lambda}`} />, we can create system of DEs:
-    </p>
-    <BlockMath math={String.raw`\frac{dx^a}{d\lambda} = V^a`} />
-    <BlockMath math={String.raw`\frac{dV^a}{d\lambda} = - \Gamma^a_{bc} V^b V^c`} />
-
-    <p>Using Euler method we get:</p>
-    <BlockMath math={String.raw`x^a_{n+1} = x^a_n + h V^a_n`} />
-    <BlockMath math={String.raw`V^a_{n+1} = V^a_n - h \Gamma^a_{bc} V^b_n V^c_n`} />
-
-    <p>Weight</p>
-    <UnitInput origin="si" si={[["kg", 1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={weight} setValue={setWeight} />
-
-    <br />
-    <p>Schwarzschild radius <InlineMath math={`r_s = ${schwarzschildRadius} ${distanceUnitTextPlanck} = ${schwarzschildRadiusSi} ${distanceUnitTextSi}`} /></p>
-
-    <p>Radius</p>
-    <UnitInput origin="si" si={[["m", 1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={radius} setValue={value => setRadius(+value)} />
-    <button onClick={() => setRadius(schwarzschildRadius)}>Set to <InlineMath math="r_s" /></button>
-
-    <br />
-    <br />
-    <p>Initial coordinates</p>
-    <UnitInput origin="si" si={[["m", 1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialCoordinates[1]} setValue={value => setArrayState(setInitialCoordinates, value, 1)} />
-    <UnitInput origin="si" si={[]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialCoordinates[2]} setValue={value => setArrayState(setInitialCoordinates, value, 2)} />
-    <UnitInput origin="si" si={[]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialCoordinates[3]} setValue={value => setArrayState(setInitialCoordinates, value, 3)} />
-
-    <br />
-    {/* TODO: units? */}
-    <p>Initial velocity: <InlineMath math={String.raw`(${initialVelocity[0]}, ${initialVelocity[1]}, ${initialVelocity[2]}, ${initialVelocity[3]})`} />, <InlineMath math={String.raw`|U| = \sqrt{U^a U^b g_{ab}} = ${initialVelocitySize} ${velocityUnitTextPlanck} = ${initialVelocitySizeSi} ${velocityUnitTextSi}`} /></p>
-    {initialVelocitySize > 1 && <p className="text-red-600">Warning: <InlineMath math="v > c" /></p>}
-    <UnitInput origin="si" si={[["m", 1], ["s", -1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialVelocity[1]} setValue={value => setArrayState(setInitialVelocity, value, 1)} />
-    <UnitInput origin="si" si={[["m", 1], ["s", -1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialVelocity[2]} setValue={value => setArrayState(setInitialVelocity, value / initialCoordinates[1], 2)} />
-    <UnitInput origin="si" si={[["m", 1], ["s", -1]]} planck={["c", "G", "h", "e", "k"]} valueUnits="planck" value={initialVelocity[3]} setValue={value => setArrayState(setInitialVelocity, value / initialCoordinates[1], 3)} />
-
-    <br />
-    <label>
-      Frequency:{" "}
-      <input type="number" min="0" max="200" value={frequency} onChange={e => setFrequency(+e.target.value)} /> <InlineMath math="Hz" />
-    </label>
-
-    <br />
-
-    <label>
-      Time scale:{" "}
-      <input type="number" value={timeScale} onChange={e => setTimeScale(+e.target.value)} /> x
-    </label>
-
-    <div>
-      <button onClick={() => setPlaying(prev => !prev)}>{playing ? "||" : ">"}</button>
-      <button onClick={() => {
-        setCoordinates([...initialCoordinates])
-        setVelocity([...initialVelocity])
-      }}>reset</button>
+            <label>
+              Orbiting body radius:
+              <input type="number" value={orbitingRadius} onChange={e => setOrbitingRadius(+e.target.value)} />
+            </label>
+            <label>
+              Orbiting body distance:
+              <input type="number" value={orbitingDistance} onChange={e => setOrbitingDistance(+e.target.value)} />
+            </label>
+            <label>
+              Orbiting body theta:
+              <input type="number" value={orbitingTheta} onChange={e => setOrbitingTheta(+e.target.value)} />
+            </label>
+            <label>
+              Orbiting body phi:
+              <input type="number" value={orbitingPhi} onChange={e => setOrbitingPhi(+e.target.value)} />
+            </label>
+          </div>
+        }
+      </div>
     </div>
-
-    <br />
-    <div>
-      <p>Coordinates: <InlineMath math={String.raw`(${coordinates[0]}, ${coordinates[1]}, ${coordinates[2]}, ${coordinates[3]})`} /></p>
-      <p>Velocity: <InlineMath math={String.raw`(${velocity[0]}, ${velocity[1]}, ${velocity[2]}, ${velocity[3]})`} />, <InlineMath math={String.raw`|U| = \sqrt{U^a U^b g_{ab}} = ${velocitySize} ${velocityUnitTextPlanck} = ${velocitySizeSi} ${velocityUnitTextSi}`} /></p>
-    </div>
-
-    <br />
-    <canvas ref={canvasRef} width="600" height="450" className="border" />
-    <br />
-    <div className="inline-flex flex-col">
-      <span>
-        <button onClick={() => setScaleSi(prev => prev / scaleDiffSmall)}>+</button> <button onClick={() => setScaleSi(prev => prev * scaleDiffSmall)}>-</button>
-      </span>
-      <span>
-        <button onClick={() => setScaleSi(prev => prev / scaleDiff)}>++</button> <button onClick={() => setScaleSi(prev => prev * scaleDiff)}>--</button>
-      </span>
-    </div>
-    <InlineMath math={`1 pixel = ${scalePlanck} ${distanceUnitTextPlanck} = ${scaleSi} ${distanceUnitTextSi}`} />
-  </>
+  )
 }
 
 /*

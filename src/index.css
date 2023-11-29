@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-input, button {
-  border: 1px solid black;
+@layer base {
+  input, button {
+    border: 1px solid black;
+    padding: 0 0.25rem;
+  }
+
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+  }
+
+  label {
+    display: flex;
+    gap: 0.5rem;
+  }
 }
