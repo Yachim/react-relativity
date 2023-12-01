@@ -3,10 +3,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { TextureLoader } from "three"
 import { OrbitControls } from "three/examples/jsm/Addons.js"
 import * as THREE from "three"
-import { c, solarMass } from "./utils/constants"
+import { c } from "./utils/constants"
 import { BlockMath, InlineMath } from "react-katex"
 import { getTimeVelocity, getVectorSize } from "./utils/metric"
-import { solarMassToGeometrized } from "./utils/units"
+import { useAngularVelocity, useCoordinate, useMass, useTimeVelocity, useVelocity, velocityToSI } from "./utils/units"
 
 extend({ OrbitControls })
 
@@ -90,8 +90,11 @@ const Skybox = () => {
 //  - omega: angular velocity
 //  - r: radius/distance
 export default function App() {
-  const [bhWeight, setBhWeight] = useState(100) // solar mass
-  const bhWeightGeometrized = useMemo(() => solarMassToGeometrized(bhWeight), [bhWeight])
+  const {
+    solarMass: bhWeight,
+    setSolarMass: setBhWeight,
+    geometrizedMass: bhWeightGeometrized
+  } = useMass(100) // solar mass
   const schwarzschildRadius = useMemo(() => bhWeightGeometrized * 2, [bhWeightGeometrized])
   const [bhRadius, setBhRadius] = useState(1)
   const [bhColor, setBhColor] = useState("#505050")
@@ -101,17 +104,67 @@ export default function App() {
   }, [bhRadius, schwarzschildRadius])
 
   const [orbitingRadius, setOrbitingRadius] = useState(2e5)
-  const [initialOrbitingDistance, setInitialOrbitingDistance] = useState(3e6)
-  const [initialOrbitingTheta, setInitialOrbitingTheta] = useState(Math.PI / 2)
-  const [initialOrbitingPhi, setInitialOrbitingPhi] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [orbitingTimeCoordinate, setOrbitingTimeCoordinate] = useState(0)
   const [orbitingColor, setOrbitingColor] = useState("#ffc0cb")
 
-  const [initialOrbitingTimeVelocity, setInitialOrbitingTimeVelocity] = useState(0)
-  const [initialOrbitingDistanceVelocity, setInitialOrbitingDistanceVelocity] = useState(0)
-  const [initialOrbitingThetaVelocity, setInitialOrbitingThetaVelocity] = useState(0)
-  const initialOrbitingThetaAngularVelocity = useMemo(() => initialOrbitingThetaVelocity / initialOrbitingDistance, [initialOrbitingThetaVelocity, initialOrbitingDistance])
-  const [initialOrbitingPhiVelocity, setInitialOrbitingPhiVelocity] = useState(0)
-  const initialOrbitingPhiAngularVelocity = useMemo(() => initialOrbitingPhiVelocity / initialOrbitingDistance, [initialOrbitingPhiVelocity, initialOrbitingDistance])
+  const {
+    initialCoordinate: initialOrbitingDistance,
+    setInitialCoordinate: setInitialOrbitingDistance,
+    coordinate: orbitingDistance,
+    setCoordinate: setcOrbitingDistance,
+  } = useCoordinate(3e6, playing)
+
+  const {
+    initialCoordinate: initialOrbitingTheta,
+    setInitialCoordinate: setInitialOrbitingTheta,
+    coordinate: orbitingTheta,
+    setCoordinate: setcOrbitingTheta,
+  } = useCoordinate(Math.PI / 2, playing)
+
+  const {
+    initialCoordinate: initialOrbitingPhi,
+    setInitialCoordinate: setInitialOrbitingPhi,
+    coordinate: orbitingPhi,
+    setCoordinate: setcOrbitingPhi,
+  } = useCoordinate(0, playing)
+
+  const {
+    initialVelocity: initialOrbitingTimeVelocity,
+    setInitialVelocity: setInitialOrbitingTimeVelocity,
+    velocity: orbitingTimeVelocity,
+    setVelocity: setOrbitingTimeVelocity
+  } = useTimeVelocity(0, playing)
+
+  const {
+    initialVelocity: initialOrbitingDistanceVelocity,
+    setInitialVelocity: setInitialOrbitingDistanceVelocity,
+    velocity: orbitingDistanceVelocity,
+    setVelocity: setOrbitingDistanceVelocity
+  } = useVelocity(0, playing)
+
+  const {
+    initialVelocity: initialOrbitingThetaVelocity,
+    setInitialVelocity: setInitialOrbitingThetaVelocity,
+    initialAngularVelocity: initialOrbitingThetaAngularVelocity,
+    initialGeometrizedAngularVelocity: initialOrbitingThetaGeometrizedAngularVelocity,
+    velocity: orbitingThetaVelocity,
+    angularVelocity: orbitingThetaAngularVelocity,
+    setAngularVelocity: setOrbitingThetaVelocity,
+    geometrizedAngularVelocity: orbitingThetaGeometrizedAngularVelocity,
+  } = useAngularVelocity(0, orbitingDistance, playing)
+
+  const {
+    initialVelocity: initialOrbitingPhiVelocity,
+    setInitialVelocity: setInitialOrbitingPhiVelocity,
+    initialAngularVelocity: initialOrbitingPhiAngularVelocity,
+    initialGeometrizedAngularVelocity: initialOrbitingPhiGeometrizedAngularVelocity,
+    velocity: orbitingPhiVelocity,
+    angularVelocity: orbitingPhiAngularVelocity,
+    setAngularVelocity: setOrbitingPhiVelocity,
+    geometrizedAngularVelocity: orbitingPhiGeometrizedAngularVelocity,
+  } = useAngularVelocity(0, orbitingDistance, playing)
+
   const initialOrbitingVelocitySize = useMemo(() => getVectorSize([
     initialOrbitingTimeVelocity,
     initialOrbitingDistanceVelocity,
@@ -130,6 +183,7 @@ export default function App() {
     schwarzschildRadius,
     initialOrbitingTheta
   ])
+
   useEffect(() => {
     setInitialOrbitingTimeVelocity(getTimeVelocity([
       initialOrbitingDistanceVelocity,
@@ -147,17 +201,9 @@ export default function App() {
     initialOrbitingDistance,
     schwarzschildRadius,
     initialOrbitingTheta,
+    setInitialOrbitingTimeVelocity
   ])
 
-  const [orbitingTimeCoordinate, setOrbitingTimeCoordinate] = useState(0)
-  const [orbitingDistance, setOrbitingDistance] = useState(0)
-  const [orbitingTheta, setOrbitingTheta] = useState(0)
-  const [orbitingPhi, setOrbitingPhi] = useState(0)
-
-  const [orbitingTimeVelocity, setOrbitingTimeVelocity] = useState(0)
-  const [orbitingDistanceVelocity, setOrbitingDistanceVelocity] = useState(0)
-  const [orbitingThetaAngularVelocity, setOrbitingThetaAngularVelocity] = useState(0)
-  const [orbitingPhiAngularVelocity, setOrbitingPhiAngularVelocity] = useState(0)
   const orbitingVelocitySize = useMemo(() => getVectorSize([
     orbitingTimeVelocity,
     orbitingDistanceVelocity,
@@ -177,36 +223,6 @@ export default function App() {
     orbitingTheta
   ])
 
-  const [playing, setPlaying] = useState(false)
-
-  const reset = useCallback(() => {
-    setOrbitingTimeCoordinate(0)
-    setOrbitingDistance(initialOrbitingDistance)
-    setOrbitingTheta(initialOrbitingTheta)
-    setOrbitingPhi(initialOrbitingPhi)
-
-    setOrbitingTimeVelocity(initialOrbitingTimeVelocity)
-    setOrbitingDistanceVelocity(initialOrbitingDistanceVelocity)
-    setOrbitingThetaAngularVelocity(initialOrbitingThetaAngularVelocity)
-    setOrbitingPhiAngularVelocity(initialOrbitingPhiAngularVelocity)
-  }, [
-    initialOrbitingDistance,
-    initialOrbitingTheta,
-    initialOrbitingPhi,
-
-    initialOrbitingTimeVelocity,
-    initialOrbitingDistanceVelocity,
-    initialOrbitingThetaAngularVelocity,
-    initialOrbitingPhiAngularVelocity,
-  ])
-
-  useEffect(() => {
-    if (playing) return
-    reset()
-  }, [
-    reset, playing
-  ])
-
   const [panelVisible, setPanelVisible] = useState<"none" | "math" | "values" | "conversion">("values")
 
   return (
@@ -224,7 +240,7 @@ export default function App() {
           <button onClick={() => setPanelVisible(prev => prev === "math" ? "none" : "math")}>Math</button>
           <button onClick={() => setPanelVisible(prev => prev === "values" ? "none" : "values")}>Values</button>
           <button onClick={() => setPanelVisible(prev => prev === "conversion" ? "none" : "conversion")}>Conversion</button>
-          <button onClick={() => setPlaying(prev => !prev)}>{playing ? "||" : ">"}</button>
+          <button onClick={() => setPlaying(prev => !prev)}>{playing ? "◼" : "►"}</button>
         </div>
         {panelVisible === "math" &&
           <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2">
@@ -244,7 +260,7 @@ export default function App() {
 
             <hr />
             <p>Metric tensor</p>
-            <BlockMath math="g = diag(-(1 - \frac{r_s}{r}),\ (1 - \frac{r_s}{r})^{-1},\ r^2,\ r^2 \sin^2 \theta)" />
+            <BlockMath math="g = diag(1 - \frac{r_s}{r},\ -\left(1 - \frac{r_s}{r}\right)^{-1},\ -r^2,\ -r^2 \sin^2 \theta)" />
 
             <hr />
 
@@ -262,8 +278,8 @@ export default function App() {
             <BlockMath math={String.raw`(U^t)^2 = \frac{|U|^2 - (U^i)^2 g_{ii}}{g_{tt}}`} />
             <BlockMath math={String.raw`U^t = \sqrt{\frac{|U|^2 - (U^i)^2 g_{ii}}{g_{tt}}}`} />
 
-            <p>Where <InlineMath math="i" /> are spatial coordinates, also <InlineMath math={String.raw`|U|^2 = -1?`} />, so we get:</p>
-            <BlockMath math={String.raw`U^t = \sqrt{\frac{-1 - (U^i)^2 g_{ii}}{g_{tt}}}`} />
+            <p>Where <InlineMath math="i" /> are spatial coordinates, also <InlineMath math={String.raw`|U|^2 = 1`} />, so we get:</p>
+            <BlockMath math={String.raw`U^t = \sqrt{\frac{1 - (U^i)^2 g_{ii}}{g_{tt}}}`} />
           </div>
         }
         {panelVisible === "values" &&
@@ -314,7 +330,7 @@ export default function App() {
             </label>
 
             <p>Initial velocity</p>
-            <p><InlineMath math={String.raw`U_0 = (${initialOrbitingTimeVelocity}, ${initialOrbitingDistanceVelocity}, ${initialOrbitingThetaAngularVelocity}, ${initialOrbitingPhiAngularVelocity})`} />, <InlineMath math={String.raw`|U| = \sqrt{(U^a)^2 g_{aa}} = ${initialOrbitingVelocitySize}\ c = ${initialOrbitingVelocitySize * c}\ ms^{-1}`} /></p>
+            <p><InlineMath math={String.raw`U_0 = (${initialOrbitingTimeVelocity}, ${initialOrbitingDistanceVelocity}, ${initialOrbitingThetaAngularVelocity}, ${initialOrbitingPhiAngularVelocity})`} />, <InlineMath math={String.raw`|U| = \sqrt{(U^a)^2 g_{aa}} = ${initialOrbitingVelocitySize}\ c = ${velocityToSI(initialOrbitingVelocitySize)}\ ms^{-1}`} /></p>
             {initialOrbitingVelocitySize > c && <p className="text-red-600">Warning: <InlineMath math={`|U| > c`} /></p>}
             <label>
               Distance:
@@ -335,7 +351,7 @@ export default function App() {
             <hr />
 
             <p><InlineMath math={String.raw`S = (${orbitingTimeCoordinate}, ${orbitingDistance}, ${orbitingTheta}, ${orbitingPhi})`} /></p>
-            <p><InlineMath math={String.raw`U = (${orbitingTimeVelocity}, ${orbitingDistanceVelocity}, ${orbitingThetaAngularVelocity}, ${orbitingPhiAngularVelocity})`} />, <InlineMath math={String.raw`|U| = \sqrt{(U^a)^2 g_{aa}} = ${orbitingVelocitySize}\ c = ${orbitingVelocitySize * c}\ ms^{-1}`} /></p>
+            <p><InlineMath math={String.raw`U = (${orbitingTimeVelocity}, ${orbitingDistanceVelocity}, ${orbitingThetaAngularVelocity}, ${orbitingPhiAngularVelocity})`} />, <InlineMath math={String.raw`|U| = \sqrt{(U^a)^2 g_{aa}} = ${orbitingVelocitySize}\ c = ${velocityToSI(orbitingVelocitySize)}\ ms^{-1}`} /></p>
           </div>
         }
       </div>

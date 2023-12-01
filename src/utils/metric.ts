@@ -2,10 +2,10 @@ type MetricData = Record<"rs" | "r" | "theta", number>
 
 export function metric({ rs, r, theta }: MetricData): [number, number, number, number] {
   return [
-    -(1 - rs / r),
-    1 / (1 - rs / r),
-    Math.pow(r, 2),
-    Math.pow(r * Math.sin(theta), 2),
+    1 - rs / r,
+    -1 / (1 - rs / r),
+    -Math.pow(r, 2),
+    -Math.pow(r * Math.sin(theta), 2),
   ]
 }
 
@@ -24,5 +24,5 @@ export function getTimeVelocity(vector: [number, number, number], metricData: Me
   const spatialSizeSquared = vector.reduce((total, v, i) => total + Math.pow(v, 2) * tensor[i + 1])
   console.log(vector, tensor, spatialSizeSquared)
 
-  return Math.sqrt((-1 - spatialSizeSquared) / tensor[0])
+  return Math.sqrt((1 - spatialSizeSquared) / tensor[0])
 }
