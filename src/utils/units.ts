@@ -27,7 +27,8 @@ export function velocityToSI(value: number): number {
   return value * c
 }
 
-export function useVelocity(initialValue: number, playing: boolean): {
+export type State = "playing" | "paused" | "stopped"
+export function useVelocity(initialValue: number, state: State): {
   initialVelocity: number
   setInitialVelocity: Dispatch<SetStateAction<number>>
   initialGeometrizedVelocity: number
@@ -42,9 +43,9 @@ export function useVelocity(initialValue: number, playing: boolean): {
   const geometrizedVelocity = useMemo(() => velocityToGeometrized(velocity), [velocity])
 
   useEffect(() => {
-    if (playing) return;
+    if (state !== "stopped") return;
     setVelocity(initialVelocity)
-  }, [playing, initialVelocity])
+  }, [state, initialVelocity])
 
   return {
     initialVelocity,
@@ -56,42 +57,48 @@ export function useVelocity(initialValue: number, playing: boolean): {
   }
 }
 
-export function useAngularVelocity(initialValue: number, distance: number, playing: boolean): {
+export function useAngularVelocity(initialValue: number, initialDistance: number, distance: number, state: State): {
   initialVelocity: number
   setInitialVelocity: Dispatch<SetStateAction<number>>
+  initialGeometrizedVelocity: number
   initialAngularVelocity: number
   initialGeometrizedAngularVelocity: number
   velocity: number
+  geometrizedVelocity: number
   angularVelocity: number
-  setAngularVelocity: Dispatch<SetStateAction<number>>
   geometrizedAngularVelocity: number
+  setGeometrizedAngularVelocity: Dispatch<SetStateAction<number>>
 } {
   const [initialVelocity, setInitialVelocity] = useState(initialValue)
-  const initialAngularVelocity = useMemo(() => initialVelocity / distance, [initialVelocity, distance])
+  const initialGeometrizedVelocity = useMemo(() => velocityToGeometrized(initialVelocity), [initialVelocity])
+  const initialAngularVelocity = useMemo(() => initialVelocity / initialDistance, [initialVelocity, initialDistance])
   const initialGeometrizedAngularVelocity = useMemo(() => velocityToGeometrized(initialVelocity), [initialVelocity])
 
-  const [angularVelocity, setAngularVelocity] = useState(initialAngularVelocity)
+  const [geometrizedAngularVelocity, setGeometrizedAngularVelocity] = useState(initialGeometrizedAngularVelocity)
+  const angularVelocity = useMemo(() => velocityToSI(geometrizedAngularVelocity), [geometrizedAngularVelocity])
   const velocity = useMemo(() => angularVelocity * distance, [angularVelocity, distance])
-  const geometrizedAngularVelocity = useMemo(() => velocityToGeometrized(velocity), [velocity])
+  const geometrizedVelocity = useMemo(() => velocityToGeometrized(velocity), [velocity])
 
   useEffect(() => {
-    if (playing) return;
-    setAngularVelocity(initialAngularVelocity)
-  }, [playing, initialAngularVelocity])
+    if (state !== "stopped") return;
+    setGeometrizedAngularVelocity(initialGeometrizedAngularVelocity)
+  }, [state, initialGeometrizedAngularVelocity])
 
   return {
     initialVelocity,
     setInitialVelocity,
+    initialGeometrizedVelocity,
     initialAngularVelocity,
     initialGeometrizedAngularVelocity,
     velocity,
+    geometrizedVelocity,
     angularVelocity,
-    setAngularVelocity,
     geometrizedAngularVelocity,
+    setGeometrizedAngularVelocity,
   }
 }
 
-export function useTimeVelocity(initialValue: number, playing: boolean): {
+export function useTimeVelocity(initialValue: number, state: State): {
   initialVelocity: number
   setInitialVelocity: Dispatch<SetStateAction<number>>
   velocity: number
@@ -102,9 +109,9 @@ export function useTimeVelocity(initialValue: number, playing: boolean): {
   const [velocity, setVelocity] = useState(initialValue)
 
   useEffect(() => {
-    if (playing) return;
+    if (state !== "stopped") return;
     setVelocity(initialVelocity)
-  }, [playing, initialVelocity])
+  }, [state, initialVelocity])
 
   return {
     initialVelocity,
@@ -114,7 +121,7 @@ export function useTimeVelocity(initialValue: number, playing: boolean): {
   }
 }
 
-export function useCoordinate(initialValue: number, playing: boolean): {
+export function useCoordinate(initialValue: number, state: State): {
   initialCoordinate: number
   setInitialCoordinate: Dispatch<SetStateAction<number>>
   coordinate: number
@@ -125,9 +132,9 @@ export function useCoordinate(initialValue: number, playing: boolean): {
   const [coordinate, setCoordinate] = useState(initialValue)
 
   useEffect(() => {
-    if (playing) return;
+    if (state !== "stopped") return;
     setCoordinate(initialCoordinate)
-  }, [playing, initialCoordinate])
+  }, [state, initialCoordinate])
 
   return {
     initialCoordinate,

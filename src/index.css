@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-size: 16px;
+  }
+
   input, button {
     border: 1px solid black;
     padding: 0 0.25rem;
@@ -16,5 +20,17 @@
   label {
     display: flex;
     gap: 0.5rem;
+  }
+
+  a {
+    text-decoration: underline;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
   }
 }

@@ -16,13 +16,13 @@ export function getVectorSizeSquared(vector: [number, number, number, number], m
 
 export function getVectorSize(vector: [number, number, number, number], metricData: MetricData): number {
   const squared = getVectorSizeSquared(vector, metricData)
+  console.trace(squared)
   return Math.sqrt(squared)
 }
 
 export function getTimeVelocity(vector: [number, number, number], metricData: MetricData): number {
   const tensor = metric(metricData)
   const spatialSizeSquared = vector.reduce((total, v, i) => total + Math.pow(v, 2) * tensor[i + 1])
-  console.log(vector, tensor, spatialSizeSquared)
 
   return Math.sqrt((1 - spatialSizeSquared) / tensor[0])
 }
