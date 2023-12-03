@@ -242,7 +242,7 @@ export default function App() {
     orbitingTheta
   ])
 
-  const [panelVisible, setPanelVisible] = useState<"none" | "math" | "inputs" | "values" | "conversion">("values")
+  const [panelVisible, setPanelVisible] = useState<"none" | "math" | "inputs" | "values">("values")
 
   const { timeScale, setTimeScale, frequency, setFrequency, period, scaledPeriod } = useFrequency(30, 0.000005)
 
@@ -337,7 +337,6 @@ export default function App() {
           <button onClick={() => setPanelVisible(prev => prev === "math" ? "none" : "math")}>Math</button>
           <button onClick={() => setPanelVisible(prev => prev === "inputs" ? "none" : "inputs")}>Inputs</button>
           <button onClick={() => setPanelVisible(prev => prev === "values" ? "none" : "values")}>Values</button>
-          <button onClick={() => setPanelVisible(prev => prev === "conversion" ? "none" : "conversion")}>Conversion</button>
           <button onClick={() => setPlayState(prev => {
             if (prev == "playing") return "paused"
             return "playing"
