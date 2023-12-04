@@ -47,11 +47,7 @@ export function nextVelocities(
   christoffelData: ChristoffelData,
   stepSize: number,
 ): [number, number, number, number] {
-  console.log(velocities)
-  console.log(christoffelData)
-  console.log(stepSize)
   const cSymbols = christoffel(christoffelData)
-  console.log(cSymbols)
 
   const newVelocities = velocities.map((va, a) =>
     va - stepSize * velocities.reduce((sumB, vb, b) =>
@@ -60,7 +56,5 @@ export function nextVelocities(
         , 0)
       , 0)
   ) as [number, number, number, number]
-  console.log(newVelocities)
-  console.log()
   return newVelocities
 }

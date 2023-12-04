@@ -242,9 +242,9 @@ export default function App() {
     orbitingTheta
   ])
 
-  const [panelVisible, setPanelVisible] = useState<"none" | "math" | "inputs" | "values">("values")
+  const [panelVisible, setPanelVisible] = useState<"none" | "math" | "inputs" | "values">("none")
 
-  const { timeScale, setTimeScale, frequency, setFrequency, period, scaledPeriod } = useFrequency(30, 0.000005)
+  const { timeScale, setTimeScale, frequency, setFrequency, period, scaledPeriod } = useFrequency(30, 1)
 
   const step = useCallback(() => {
     const coordinates: [number, number, number, number] = [
@@ -495,8 +495,8 @@ export default function App() {
 
             <InlineMath math={`U_0^t = ${initialOrbitingTimeVelocity}`} />
             <InlineMath math={String.raw`U_0^r = ${initialOrbitingDistanceVelocity}\ ms^{-1} = ${initialOrbitingDistanceGeometrizedVelocity}\ c`} />
-            <InlineMath math={String.raw`U_0^{\theta} = ${initialOrbitingThetaVelocity}\ ms^{-1} = ${initialOrbitingThetaGeometrizedVelocity}\ \hat{=}\ ${initialOrbitingThetaAngularVelocity} s^{-1} = ${initialOrbitingThetaGeometrizedAngularVelocity}`} />
-            <InlineMath math={String.raw`U_0^{\phi} = ${initialOrbitingPhiVelocity}\ ms^{-1} = ${initialOrbitingPhiGeometrizedVelocity}\ \hat{=}\ ${initialOrbitingPhiAngularVelocity} s^{-1} = ${initialOrbitingPhiGeometrizedAngularVelocity}`} />
+            <InlineMath math={String.raw`U_0^{\theta} = ${initialOrbitingThetaVelocity}\ ms^{-1} = ${initialOrbitingThetaGeometrizedVelocity}\ c\ \hat{=}\ ${initialOrbitingThetaAngularVelocity}\ s^{-1} = ${initialOrbitingThetaGeometrizedAngularVelocity}\ c`} />
+            <InlineMath math={String.raw`U_0^{\phi} = ${initialOrbitingPhiVelocity}\ ms^{-1} = ${initialOrbitingPhiGeometrizedVelocity}\ c\ \hat{=}\ ${initialOrbitingPhiAngularVelocity}\ s^{-1} = ${initialOrbitingPhiGeometrizedAngularVelocity}\ c`} />
 
             <InlineMath math={String.raw`|U_0| = \sqrt{(U^a)^2 g_{aa}} = ${velocityToSI(initialOrbitingVelocitySize)}\ ms^{-1} = ${initialOrbitingVelocitySize}\ c`} />
             {initialOrbitingVelocitySize > 1 && <p className="text-red-600">Warning: <InlineMath math={`|U_0| > c`} /></p>}
@@ -512,8 +512,8 @@ export default function App() {
 
             <InlineMath math={`U^t = ${orbitingTimeVelocity}`} />
             <InlineMath math={String.raw`U^r = ${orbitingDistanceVelocity}\ ms^{-1} = ${orbitingDistanceGeometrizedVelocity}\ c`} />
-            <InlineMath math={String.raw`U^{\theta} = ${orbitingThetaVelocity}\ ms^{-1} = ${orbitingThetaGeometrizedVelocity}\ \hat{=}\ ${orbitingThetaAngularVelocity} s^{-1} = ${orbitingThetaGeometrizedAngularVelocity}`} />
-            <InlineMath math={String.raw`U^{\phi} = ${orbitingPhiVelocity}\ ms^{-1} = ${orbitingPhiGeometrizedVelocity}\ \hat{=}\ ${orbitingPhiAngularVelocity} s^{-1} = ${orbitingPhiGeometrizedAngularVelocity}`} />
+            <InlineMath math={String.raw`U^{\theta} = ${orbitingThetaVelocity}\ ms^{-1} = ${orbitingThetaGeometrizedVelocity}\ c\ \hat{=}\ ${orbitingThetaAngularVelocity}\ s^{-1} = ${orbitingThetaGeometrizedAngularVelocity}\ c`} />
+            <InlineMath math={String.raw`U^{\phi} = ${orbitingPhiVelocity}\ ms^{-1} = ${orbitingPhiGeometrizedVelocity}\ c\ \hat{=}\ ${orbitingPhiAngularVelocity}\ s^{-1} = ${orbitingPhiGeometrizedAngularVelocity}\ c`} />
 
             <InlineMath math={String.raw`|U| = \sqrt{(U^a)^2 g_{aa}} = ${velocityToSI(orbitingVelocitySize)}\ ms^{-1} = ${orbitingVelocitySize}\ c`} />
             {orbitingVelocitySize > 1 && <p className="text-red-600">Warning: <InlineMath math={`|U| > c`} /></p>}
