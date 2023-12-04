@@ -16,7 +16,6 @@ export function getVectorSizeSquared(vector: [number, number, number, number], m
 
 export function getVectorSize(vector: [number, number, number, number], metricData: MetricData): number {
   const squared = getVectorSizeSquared(vector, metricData)
-  console.trace(squared)
   return Math.sqrt(squared)
 }
 

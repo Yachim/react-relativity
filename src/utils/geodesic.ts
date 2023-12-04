@@ -7,11 +7,7 @@ export function nextCoordinates(
   return coordinates.map((coord, i) => coord + stepSize * velocities[i]) as [number, number, number, number]
 }
 
-type ChristoffelData = {
-  rs: number
-  r: number
-  theta: number
-}
+type ChristoffelData = Record<"rs" | "r" | "theta", number>
 
 function christoffel({ rs, r, theta }: ChristoffelData): number[][][] {
   const christoffel: number[][][] = Array(4).fill(0).map(
