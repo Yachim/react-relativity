@@ -204,8 +204,8 @@ export default function App() {
     // FIXME: a lot of times > c
     setInitialOrbitingTimeVelocity(getTimeVelocity([
       initialOrbitingDistanceVelocity,
-      initialOrbitingThetaAngularVelocity,
-      initialOrbitingPhiAngularVelocity
+      initialOrbitingThetaGeometrizedAngularVelocity,
+      initialOrbitingPhiGeometrizedAngularVelocity,
     ], {
       r: initialOrbitingDistance,
       rs: schwarzschildRadius,
@@ -214,8 +214,8 @@ export default function App() {
   }, [
     playState,
     initialOrbitingDistanceVelocity,
-    initialOrbitingThetaAngularVelocity,
-    initialOrbitingPhiAngularVelocity,
+    initialOrbitingThetaGeometrizedAngularVelocity,
+    initialOrbitingPhiGeometrizedAngularVelocity,
     initialOrbitingDistance,
     schwarzschildRadius,
     initialOrbitingTheta,
@@ -264,12 +264,9 @@ export default function App() {
       velocities,
       scaledPeriod,
     )
-    setOrbitingTimeCoordinate(newT)
-    setOrbitingDistance(newR)
-    setOrbitingTheta(newTheta)
-    setOrbitingPhi(newPhi)
+
     const [newTU, newRU, newThetaU, newPhiU] = nextVelocities(
-      coordinates,
+      velocities,
       {
         rs: schwarzschildRadius,
         r: orbitingDistance,
@@ -277,6 +274,12 @@ export default function App() {
       },
       scaledPeriod,
     )
+
+    setOrbitingTimeCoordinate(newT)
+    setOrbitingDistance(newR)
+    setOrbitingTheta(newTheta)
+    setOrbitingPhi(newPhi)
+
     setOrbitingTimeVelocity(newTU)
     setOrbitingDistanceVelocity(newRU)
     setOrbitingThetaGeometrizedAngularVelocity(newThetaU)
@@ -530,7 +533,13 @@ https://commons.wikimedia.org/wiki/File:Newton_versus_Schwarzschild_trajectories
  - weight: 10 solar masses
  - distance (x^1): 295414 m
  - velocity (v^3): 8.9e7 ms^-1
- - recommended radius for both: 3e4 m
+ - recommended radius for both: 1e5 m
+
+modified 1st
+ - weight: 10 solar masses
+ - distance (x^1): 295414 m
+ - velocity (v^3): 7.27103845e7 ms^-1
+ - recommended radius for both: 1e5 m
 
 mercury and sun
  - weight: 1 solar mass
@@ -541,5 +550,5 @@ mercury and sun
 time dilation for space station (expected 1.000000001)
  - weight: 2.985e-6 solar masses
  - distance (x^1): 6.78e6 m
- - velocity: 7.66e3 ms^-1
+ - velocity: 7660 ms^-1
 */

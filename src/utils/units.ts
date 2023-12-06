@@ -79,12 +79,12 @@ export function useAngularVelocity(initialValue: number, initialDistance: number
   const [initialVelocity, setInitialVelocity] = useState(initialValue)
   const initialGeometrizedVelocity = useMemo(() => velocityToGeometrized(initialVelocity), [initialVelocity])
   const initialAngularVelocity = useMemo(() => initialVelocity / initialDistance, [initialVelocity, initialDistance])
-  const initialGeometrizedAngularVelocity = useMemo(() => velocityToGeometrized(initialVelocity), [initialVelocity])
+  const initialGeometrizedAngularVelocity = useMemo(() => velocityToGeometrized(initialAngularVelocity), [initialAngularVelocity])
 
   const [geometrizedAngularVelocity, setGeometrizedAngularVelocity] = useState(initialGeometrizedAngularVelocity)
   const angularVelocity = useMemo(() => velocityToSI(geometrizedAngularVelocity), [geometrizedAngularVelocity])
   const velocity = useMemo(() => angularVelocity * distance, [angularVelocity, distance])
-  const geometrizedVelocity = useMemo(() => velocityToGeometrized(velocity), [velocity])
+  const geometrizedVelocity = useMemo(() => geometrizedAngularVelocity * distance, [geometrizedAngularVelocity, distance])
 
   useEffect(() => {
     if (state !== "stopped") return;
