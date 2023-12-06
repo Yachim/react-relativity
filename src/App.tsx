@@ -83,10 +83,14 @@ function Sphere({ radius, r, theta, phi, color, scale, trail }: SphereProps) {
 
   useFrame(() => {
     if (!trail) return
-    setPointsData(prev => [...prev.filter(val => Date.now() - val.time < trail.decayTime * 1000), {
-      point: [x / scale, y / scale, z / scale],
-      time: Date.now()
-    }])
+    setPointsData(prev =>
+      [...prev.filter(val => Date.now() - val.time < trail.decayTime * 1000),
+      {
+        point: [x / scale, y / scale, z / scale],
+        time: Date.now()
+      }
+      ]
+    )
   })
 
   const points = useMemo(() => pointsData.map(({ point }) => point), [pointsData])
@@ -127,6 +131,139 @@ const Skybox = () => {
 
 // used in stepMore
 const stepCount = 100
+
+type PresetValueName =
+  "bhWeight" |
+  "bhRadius" |
+  "orbitingRadius" |
+  "timeScale" |
+  "initialOrbitingDistance" |
+  "initialOrbitingTheta" |
+  "initialOrbitingPhi" |
+  "initialOrbitingDistanceVelocity" |
+  "initialOrbitingThetaVelocity" |
+  "initialOrbitingPhiVelocity" |
+  "orbitingTrailWidth" |
+  "orbitingTrailDecay"
+// TODO: bodies colors, trail colors
+
+const presets: {
+  name: string
+  description?: string
+  values: {
+    recommended?: boolean
+    name: PresetValueName
+    value: number
+  }[]
+}[] = [
+    {
+      name: "Wikipedia Schwarzschild geodesics",
+      description: "https://commons.wikimedia.org/wiki/File:Newton_versus_Schwarzschild_trajectories.gif",
+      values: [
+        {
+          name: "bhWeight",
+          value: 10,
+        },
+        {
+          name: "initialOrbitingDistance",
+          value: 295414,
+        },
+        {
+          name: "initialOrbitingTheta",
+          value: Math.PI / 2,
+        },
+        {
+          name: "initialOrbitingPhiVelocity",
+          value: 8.9e7,
+        },
+        {
+          name: "bhRadius",
+          value: 5e4,
+          recommended: true,
+        },
+        {
+          name: "orbitingRadius",
+          value: 5e4,
+          recommended: true,
+        },
+        {
+          name: "timeScale",
+          value: 5e6,
+          recommended: true,
+        },
+        {
+          name: "orbitingTrailDecay",
+          value: 8,
+          recommended: true,
+        },
+      ]
+    },
+    {
+      name: "Mercury and Sun",
+      values: [
+        {
+          name: "bhWeight",
+          value: 1,
+        },
+        {
+          name: "initialOrbitingDistance",
+          value: 58e9,
+        },
+        {
+          name: "initialOrbitingTheta",
+          value: Math.PI / 2,
+        },
+        {
+          name: "initialOrbitingPhiVelocity",
+          value: 47e3,
+        },
+        {
+          name: "bhRadius",
+          value: 1e9,
+          recommended: true,
+        },
+        {
+          name: "orbitingRadius",
+          value: 1e9,
+          recommended: true,
+        },
+        {
+          name: "timeScale",
+          value: 760320000000000,
+          recommended: true,
+        },
+        {
+          name: "orbitingTrailDecay",
+          value: 100,
+          recommended: true,
+        },
+      ]
+    },
+    {
+      name: "Time dilation on ISS",
+      description: "Just look at initial time velocity. It should be around 1.000000001.",
+      values: [
+        {
+          name: "bhWeight",
+          value: 2.985e-6,
+        },
+        {
+          name: "initialOrbitingDistance",
+          value: 6.78e6,
+        },
+        {
+          name: "initialOrbitingTheta",
+          value: Math.PI / 2,
+        },
+        {
+          name: "initialOrbitingPhiVelocity",
+          value: 7660,
+        },
+      ]
+    },
+  ]
+
+// FIXME: stop when r < r_s
 
 // c = G = 1
 // weight in solar mass, distance in meters, speed in ms^-1, time in seconds
@@ -246,7 +383,6 @@ export default function App() {
 
   useEffect(() => {
     if (playState !== "stopped") return;
-    // FIXME: a lot of times > c
     setInitialOrbitingTimeVelocity(getTimeVelocity([
       initialOrbitingDistanceVelocity,
       initialOrbitingThetaGeometrizedAngularVelocity,
@@ -287,7 +423,7 @@ export default function App() {
     orbitingTheta
   ])
 
-  const [panelVisible, setPanelVisible] = useState<"none" | "math" | "inputs" | "values">("none")
+  const [panelVisible, setPanelVisible] = useState<"none" | "math" | "inputs" | "values" | "presets">("none")
 
   const {
     timeScale,
@@ -382,6 +518,78 @@ export default function App() {
     (orbitingRadius + bhRadius + initialOrbitingDistance) / 5
     , [orbitingRadius, bhRadius, initialOrbitingDistance])
 
+  const [selectedPreset, setSelectedPreset] = useState(-1)
+
+  const setValue = useCallback((name: PresetValueName, value: number) => {
+    switch (name) {
+      case "bhWeight":
+        setBhWeight(value)
+        break
+      case "bhRadius":
+        setBhRadius(value)
+        break
+      case "orbitingRadius":
+        setOrbitingRadius(value)
+        break
+      case "timeScale":
+        setTimeScale(value)
+        break
+      case "initialOrbitingDistance":
+        setInitialOrbitingDistance(value)
+        break
+      case "initialOrbitingTheta":
+        setInitialOrbitingTheta(value)
+        break
+      case "initialOrbitingPhi":
+        setInitialOrbitingPhi(value)
+        break
+      case "initialOrbitingDistanceVelocity":
+        setInitialOrbitingDistanceVelocity(value)
+        break
+      case "initialOrbitingThetaVelocity":
+        setInitialOrbitingThetaVelocity(value)
+        break
+      case "initialOrbitingPhiVelocity":
+        setInitialOrbitingPhiVelocity(value)
+        break
+      case "orbitingTrailWidth":
+        setOrbitingTrailWidth(value)
+        break
+      case "orbitingTrailDecay":
+        setOrbitingTrailDecay(value)
+        break
+    }
+  }, [
+    setBhWeight,
+    setBhRadius,
+    setOrbitingRadius,
+    setTimeScale,
+    setInitialOrbitingDistance,
+    setInitialOrbitingTheta,
+    setInitialOrbitingPhi,
+    setInitialOrbitingDistanceVelocity,
+    setInitialOrbitingThetaVelocity,
+    setInitialOrbitingPhiVelocity,
+    setOrbitingTrailWidth,
+    setOrbitingTrailDecay,
+  ])
+
+  useEffect(() => {
+    if (selectedPreset > presets.length || selectedPreset < 0) return
+    presets[selectedPreset].values.forEach(({ name, value, recommended }) => {
+      if (recommended) return
+      setValue(name, value)
+    })
+  }, [
+    selectedPreset,
+    setValue
+  ])
+
+  const recommendedValues = useMemo(() => {
+    if (selectedPreset > presets.length || selectedPreset < 0) return []
+    return presets[selectedPreset].values.filter(({ recommended }) => recommended)
+  }, [selectedPreset])
+
   return (
     <div className="w-full h-full">
       <Canvas>
@@ -409,6 +617,7 @@ export default function App() {
           <button onClick={() => setPanelVisible(prev => prev === "math" ? "none" : "math")}>Math</button>
           <button onClick={() => setPanelVisible(prev => prev === "inputs" ? "none" : "inputs")}>Inputs</button>
           <button onClick={() => setPanelVisible(prev => prev === "values" ? "none" : "values")}>Values</button>
+          <button onClick={() => setPanelVisible(prev => prev === "presets" ? "none" : "presets")}>Presets</button>
           <button onClick={() => setPlayState(prev => {
             if (prev == "playing") return "paused"
             return "playing"
@@ -435,7 +644,7 @@ export default function App() {
           </label>
         </div>
         {panelVisible === "math" &&
-          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 h-full overflow-y-scroll">
+          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 h-full overflow-y-auto">
             <h2><a href="https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf">Units and conversion</a></h2>
             <p>Geometrized units are used for calculations (<InlineMath math="c = G = 1" />). For mass, the solar mass (<InlineMath math="M_{\odot}" />) is used. The <InlineMath math="si, g" /> subscripts are for SI and geometrized units respectively.</p>
             <h3>Length</h3>
@@ -505,7 +714,7 @@ export default function App() {
           </div>
         }
         {panelVisible === "inputs" &&
-          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 overflow-y-scroll">
+          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 overflow-y-auto">
             <h2>Massive body</h2>
             <label>
               Weight:
@@ -598,7 +807,7 @@ export default function App() {
           </div>
         }
         {panelVisible === "values" &&
-          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 overflow-y-scroll">
+          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 overflow-y-auto w-fit">
             <InlineMath math={String.raw`S_0^t = 0\ s`} />
             <InlineMath math={String.raw`S_0^r = ${initialOrbitingDistance}\ m`} />
             <InlineMath math={String.raw`S_0^{\theta} = ${initialOrbitingTheta}`} />
@@ -632,29 +841,30 @@ export default function App() {
             {orbitingVelocitySize > 1 && <p className="text-red-600">Warning: <InlineMath math={`|U| > c`} /></p>}
           </div>
         }
+        {panelVisible === "presets" &&
+          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 h-full overflow-y-auto items-start">
+            <select value={selectedPreset} onChange={(e) => setSelectedPreset(+e.target.value)}>
+              <option value={-1} disabled>--select--</option>
+              {presets.map(({ name }, i) => <option key={i} value={i}>{name}</option>)}
+            </select>
+            {selectedPreset !== -1 && presets[selectedPreset].description &&
+              <p>{presets[selectedPreset].description}</p>
+            }
+            {recommendedValues.length > 0 &&
+              <>
+                <h2>Recommended values</h2>
+                <button
+                  onClick={() => recommendedValues.forEach(({ name, value }) => setValue(name, value))}
+                >Use all</button>
+                {recommendedValues.map(({ name, value }, i) =>
+                  <p key={i}>{name} = {value} <button onClick={() => setValue(name, value)}>Use</button></p>
+                )}
+              </>
+            }
+          </div>
+        }
       </div>
     </div >
   )
 }
 
-/*
-Presets
-https://commons.wikimedia.org/wiki/File:Newton_versus_Schwarzschild_trajectories.gif
- - weight: 10 solar masses
- - distance (x^1): 295414 m
- - velocity (v^3): 8.9e7 ms^-1
- - recommended radius for both: 5e4 m
- - recommended time scale: 5000000
-
-mercury and sun
- - weight: 1 solar mass
- - distance (x^1): 58e9 m
- - velocity (v^3): 47e3 ms^-1
- - recommended radius for both: 1e9
- - recommended time scale: 760320000000000
-
-time dilation for space station (expected 1.000000001)
- - weight: 2.985e-6 solar masses
- - distance (x^1): 6.78e6 m
- - velocity: 7660 ms^-1
-*/
