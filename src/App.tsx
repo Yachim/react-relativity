@@ -1,4 +1,4 @@
-import { Canvas, Color, extend, useFrame, useLoader, useThree } from "@react-three/fiber"
+import { Canvas, Color, extend, useFrame, useLoader, useThree, ReactThreeFiber } from "@react-three/fiber"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { TextureLoader } from "three"
 import { OrbitControls } from "three/examples/jsm/Addons.js"
@@ -14,11 +14,20 @@ import { Line } from "@react-three/drei"
 
 extend({ OrbitControls })
 
+declare global {
+  export namespace JSX {
+    interface IntrinsicElements {
+      'orbitControls': ReactThreeFiber.Object3DNode<OrbitControls, typeof OrbitControls>;
+    }
+  }
+}
+
 const CameraControls = () => {
   const { camera, gl } = useThree()
-  const controlsRef = useRef()
+  const controlsRef = useRef<OrbitControls>(null)
 
   useFrame(() => {
+    if (!controlsRef || !controlsRef.current) return
     controlsRef.current.update()
   })
 
@@ -807,7 +816,7 @@ export default function App() {
           </div>
         }
         {panelVisible === "values" &&
-          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 overflow-y-auto w-fit">
+          <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 overflow-y-auto">
             <InlineMath math={String.raw`S_0^t = 0\ s`} />
             <InlineMath math={String.raw`S_0^r = ${initialOrbitingDistance}\ m`} />
             <InlineMath math={String.raw`S_0^{\theta} = ${initialOrbitingTheta}`} />

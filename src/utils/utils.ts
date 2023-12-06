@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 export function useFrequency(initialFrequency: number, initialTimeScale: number) {
   const [frequency, setFrequency] = useState(initialFrequency)
