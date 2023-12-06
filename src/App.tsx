@@ -10,6 +10,7 @@ import { useFrequency } from "./utils/utils"
 import { nextCoordinates, nextVelocities } from "./utils/geodesic"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { faForwardFast, faForwardStep, faPause, faPlay, faStop } from "@fortawesome/free-solid-svg-icons"
+import { Line } from "@react-three/drei"
 
 extend({ OrbitControls })
 
@@ -36,10 +37,17 @@ type CartesianCoordinates = {
   z: number
 }
 
+type TrailProps = {
+  color: THREE.ColorRepresentation
+  width: number
+  decayTime: number
+}
+
 type SphereProps = {
   radius: number
-  color?: Color
+  color: Color
   scale: number
+  trail?: TrailProps
 } & Partial<RadialCoordinates>
 
 function radialToCartesian({ r, theta, phi }: Partial<RadialCoordinates>): CartesianCoordinates {
@@ -56,16 +64,49 @@ function radialToCartesian({ r, theta, phi }: Partial<RadialCoordinates>): Carte
   return { x, y, z }
 }
 
-function Sphere({ radius, r, theta, phi, color, scale }: SphereProps) {
+function Sphere({ radius, r, theta, phi, color, scale, trail }: SphereProps) {
   const { x, y, z } = useMemo(() => radialToCartesian({ r, theta, phi }), [r, theta, phi])
 
+  const [pointsData, setPointsData] = useState<{
+    point: [number, number, number]
+    time: number
+  }[]>([
+    {
+      point: [x / scale, y / scale, z / scale],
+      time: Date.now()
+    },
+    {
+      point: [x / scale, y / scale, z / scale],
+      time: Date.now()
+    }
+  ])
+
+  useFrame(() => {
+    if (!trail) return
+    setPointsData(prev => [...prev.filter(val => Date.now() - val.time < trail.decayTime * 1000), {
+      point: [x / scale, y / scale, z / scale],
+      time: Date.now()
+    }])
+  })
+
+  const points = useMemo(() => pointsData.map(({ point }) => point), [pointsData])
+
   return (
-    <mesh
-      position={[x / scale, y / scale, z / scale]}
-    >
-      <sphereGeometry args={[radius / scale]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
+    <>
+      {trail &&
+        <Line
+          points={points}
+          color={trail.color}
+          lineWidth={trail.width}
+        />
+      }
+      <mesh
+        position={[x / scale, y / scale, z / scale]}
+      >
+        <sphereGeometry args={[radius / scale]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+    </>
   )
 }
 
@@ -88,7 +129,7 @@ const Skybox = () => {
 const stepCount = 100
 
 // c = G = 1
-// weight in solar mass, distance in meters, speed in lightSpeed, time in seconds
+// weight in solar mass, distance in meters, speed in ms^-1, time in seconds
 // initial velocity of angles is not in angular velocity, but normal velocity (v = omega * r => omega = v/r)
 //  - v: speed
 //  - omega: angular velocity
@@ -111,6 +152,10 @@ export default function App() {
   const [playState, setPlayState] = useState<State>("stopped")
   const [orbitingTimeCoordinate, setOrbitingTimeCoordinate] = useState(0)
   const [orbitingColor, setOrbitingColor] = useState("#80ff00")
+  const [orbitingTrailEnabled, setOrbitingTrailEnabled] = useState(true)
+  const [orbitingTrailColor, setOrbitingTrailColor] = useState(orbitingColor)
+  const [orbitingTrailWidth, setOrbitingTrailWidth] = useState(5)
+  const [orbitingTrailDecay, setOrbitingTrailDecay] = useState(4)
 
   useEffect(() => {
     if (playState !== "stopped") return;
@@ -244,7 +289,16 @@ export default function App() {
 
   const [panelVisible, setPanelVisible] = useState<"none" | "math" | "inputs" | "values">("none")
 
-  const { timeScale, setTimeScale, frequency, setFrequency, period, scaledPeriod } = useFrequency(30, 1)
+  const {
+    timeScale,
+    setTimeScale,
+    frequency,
+    setFrequency,
+    iterationCnt,
+    setIterationCnt,
+    period,
+    scaledPeriod
+  } = useFrequency(30, 1)
 
   const step = useCallback(() => {
     const coordinates: [number, number, number, number] = [
@@ -263,6 +317,7 @@ export default function App() {
       coordinates,
       velocities,
       scaledPeriod,
+      iterationCnt,
     )
 
     const [newTU, newRU, newThetaU, newPhiU] = nextVelocities(
@@ -273,6 +328,7 @@ export default function App() {
         theta: orbitingTheta,
       },
       scaledPeriod,
+      iterationCnt,
     )
 
     setOrbitingTimeCoordinate(newT)
@@ -294,6 +350,7 @@ export default function App() {
     orbitingTimeCoordinate,
     orbitingTimeVelocity,
     scaledPeriod,
+    iterationCnt,
     schwarzschildRadius,
     setOrbitingDistance,
     setOrbitingDistanceVelocity,
@@ -333,7 +390,19 @@ export default function App() {
         <ambientLight />
         <directionalLight color="white" position={[10, 10, 10]} />
         <Sphere radius={bhRadius} color={bhColor} scale={scale} />
-        <Sphere radius={orbitingRadius} color={orbitingColor} r={orbitingDistance} theta={orbitingTheta} phi={orbitingPhi} scale={scale} />
+        <Sphere
+          radius={orbitingRadius}
+          color={orbitingColor}
+          r={orbitingDistance}
+          theta={orbitingTheta}
+          phi={orbitingPhi}
+          scale={scale}
+          trail={orbitingTrailEnabled ? {
+            color: orbitingTrailColor,
+            width: orbitingTrailWidth,
+            decayTime: orbitingTrailDecay,
+          } : undefined}
+        />
       </Canvas>
       <div className="w-full absolute top-0 flex flex-col max-h-screen">
         <div className="p-2 bg-opacity-90 bg-gray-400 flex gap-2">
@@ -357,7 +426,11 @@ export default function App() {
             <InlineMath math="Hz" />
           </label>
           <label>
-            <input type="number" value={timeScale} onChange={e => setTimeScale(+e.target.value)} />
+            Iteration count:
+            <input type="number" min="0" value={iterationCnt} onChange={e => setIterationCnt(+e.target.value)} />
+          </label>
+          <label>
+            <input type="number" min="0" value={timeScale} onChange={e => setTimeScale(+e.target.value)} />
             x
           </label>
         </div>
@@ -398,9 +471,18 @@ export default function App() {
             <BlockMath math={String.raw`\frac{dx^a}{d\lambda} = U^a`} />
             <BlockMath math={String.raw`\frac{dU^a}{d\lambda} = - \Gamma^a_{bc} U^b U^c`} />
 
-            <p>Using Euler method we get:</p>
+            <p>Using Euler method, we get:</p>
             <BlockMath math={String.raw`x^a_{n+1} = x^a_n + h U^a_n`} />
             <BlockMath math={String.raw`U^a_{n+1} = U^a_n - h \Gamma^a_{bc} U^b_n U^c_n`} />
+
+            {/*TODO:
+            <p>Or using Runge Kutta method, we get:</p>
+            <BlockMath math={String.raw`x^a_{n+1} = x^a_n + \frac{h}{6} U^a_n`} />
+            <BlockMath math={String.raw`U^a_{n+1} = U^a_n - h \Gamma^a_{bc} U^b_n U^c_n`} />*/}
+
+            <BlockMath math="h = \frac{s}{fn}" />
+
+            <p>Where <InlineMath math="f" /> is frequency, <InlineMath math="s" /> is the time scale and <InlineMath math="n" /> is the iteration count. <InlineMath math="n" /> calculations are done <InlineMath math="f" /> times per second.</p>
 
             <hr />
 
@@ -453,6 +535,34 @@ export default function App() {
               Color:
               <input type="color" value={orbitingColor} onChange={e => setOrbitingColor(e.target.value)} />
             </label>
+
+            <h3>Trail</h3>
+
+            <label>
+              Enabled
+              <input type="checkbox" checked={orbitingTrailEnabled} onChange={() => setOrbitingTrailEnabled(prev => !prev)} />
+            </label>
+
+            {orbitingTrailEnabled &&
+              <>
+                <label>
+                  Color:
+                  <input type="color" value={orbitingTrailColor} onChange={e => setOrbitingTrailColor(e.target.value)} />
+                </label>
+
+                <label>
+                  Width:
+                  <input type="number" value={orbitingTrailWidth} onChange={e => setOrbitingTrailWidth(+e.target.value)} />
+                  px
+                </label>
+
+                <label>
+                  Decay:
+                  <input type="number" value={orbitingTrailDecay} onChange={e => setOrbitingTrailDecay(+e.target.value)} />
+                  <InlineMath math="s" />
+                </label>
+              </>
+            }
 
             <h3>Initial coordinates</h3>
             <label>
@@ -533,19 +643,15 @@ https://commons.wikimedia.org/wiki/File:Newton_versus_Schwarzschild_trajectories
  - weight: 10 solar masses
  - distance (x^1): 295414 m
  - velocity (v^3): 8.9e7 ms^-1
- - recommended radius for both: 1e5 m
-
-modified 1st
- - weight: 10 solar masses
- - distance (x^1): 295414 m
- - velocity (v^3): 7.27103845e7 ms^-1
- - recommended radius for both: 1e5 m
+ - recommended radius for both: 5e4 m
+ - recommended time scale: 5000000
 
 mercury and sun
  - weight: 1 solar mass
  - distance (x^1): 58e9 m
  - velocity (v^3): 47e3 ms^-1
  - recommended radius for both: 1e9
+ - recommended time scale: 760320000000000
 
 time dilation for space station (expected 1.000000001)
  - weight: 2.985e-6 solar masses
