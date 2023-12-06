@@ -16,6 +16,12 @@ layout {
     }
   }
   tab name="terminal"
+  tab name="test" {
+    pane {
+      command "npm"
+      args "test" "--watch"
+    }
+  }
   tab {
     pane {
       command "npm"

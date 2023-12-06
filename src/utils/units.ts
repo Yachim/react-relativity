@@ -1,10 +1,17 @@
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import { G, c, solarMass } from "./constants";
 
-function solarMassToGeometrized(value: number): number {
+function solarMassToSi(value: number): number {
+  return value * solarMass
+}
+
+function siMassToGeometrized(value: number): number {
   const factor = Math.pow(c, 2) * Math.pow(G, -1)
-  const siMass = value * solarMass
-  return siMass / factor
+  return value / factor
+}
+
+function solarMassToGeometrized(value: number): number {
+  return siMassToGeometrized(solarMassToSi(value))
 }
 
 export function useMass(initialValue: number): {
@@ -141,5 +148,20 @@ export function useCoordinate(initialValue: number, state: State): {
     setInitialCoordinate,
     coordinate,
     setCoordinate,
+  }
+}
+
+export let testExports: {
+  solarMassToSi: typeof solarMassToSi,
+  siMassToGeometrized: typeof siMassToGeometrized,
+  solarMassToGeometrized: typeof solarMassToGeometrized,
+  velocityToGeometrized: typeof velocityToGeometrized,
+} | undefined = undefined
+if (process.env.NODE_ENV === "test") {
+  testExports = {
+    solarMassToSi,
+    siMassToGeometrized,
+    solarMassToGeometrized,
+    velocityToGeometrized
   }
 }
