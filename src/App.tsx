@@ -59,7 +59,7 @@ type SphereProps = {
   trail?: TrailProps
 } & Partial<RadialCoordinates>
 
-function radialToCartesian({ r, theta, phi }: Partial<RadialCoordinates>): CartesianCoordinates {
+function schwarzschildToCartesian({ r, theta, phi }: Partial<RadialCoordinates>): CartesianCoordinates {
   const sinTheta = Math.sin(theta ?? 0)
   const cosTheta = Math.cos(theta ?? 0)
   const sinPhi = Math.sin(phi ?? 0)
@@ -74,7 +74,7 @@ function radialToCartesian({ r, theta, phi }: Partial<RadialCoordinates>): Carte
 }
 
 function Sphere({ radius, r, theta, phi, color, scale, trail }: SphereProps) {
-  const { x, y, z } = useMemo(() => radialToCartesian({ r, theta, phi }), [r, theta, phi])
+  const { x, y, z } = useMemo(() => schwarzschildToCartesian({ r, theta, phi }), [r, theta, phi])
 
   const [pointsData, setPointsData] = useState<{
     point: [number, number, number]

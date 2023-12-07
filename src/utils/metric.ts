@@ -1,17 +1,50 @@
-type MetricData = Record<"rs" | "r" | "theta", number>
+type BaseMetricData = Record<"rs" | "r" | "theta", number>
+type SchwarzschildMetricData = BaseMetricData & { kerr: false }
+type KerrMetricData = BaseMetricData & { kerr: true, a: number }
+type MetricData = SchwarzschildMetricData | KerrMetricData
 
-export function metric({ rs, r, theta }: MetricData): [number, number, number, number] {
-  return [
-    1 - rs / r,
-    -1 / (1 - rs / r),
-    -Math.pow(r, 2),
-    -Math.pow(r * Math.sin(theta), 2),
-  ]
+function schwarzschildMetric({ rs, r, theta }: SchwarzschildMetricData): number[][] {
+  const metric: number[][] = Array(4).fill(0).map(
+    () => Array(4).fill(0)
+  )
+
+  metric[0][0] = 1 - rs / r
+  metric[1][1] = -1 / (1 - rs / r)
+  metric[2][2] = -Math.pow(r, 2)
+  metric[3][3] = -Math.pow(r * Math.sin(theta), 2)
+
+  return metric
+}
+
+function kerrMetric({ rs, r, theta, a }: KerrMetricData): number[][] {
+  const metric: number[][] = Array(4).fill(0).map(
+    () => Array(4).fill(0)
+  )
+
+  const sigma = Math.pow(r, 2) + Math.pow(a * Math.cos(theta), 2)
+  const delta = Math.pow(r, 2) - rs * r + Math.pow(a, 2)
+  const sinTheta2 = Math.pow(Math.sin(theta), 2)
+
+  metric[0][0] = -(1 - (rs * r) / sigma)
+  metric[1][1] = sigma / delta
+  metric[2][2] = sigma
+  metric[3][3] = (Math.pow(r, 2) + Math.pow(a, 2) + (rs * r * a) / sigma * sinTheta2) * sinTheta2
+  metric[1][3] = (rs * r * a * sinTheta2) / sigma
+  metric[3][1] = metric[1][3]
+
+  return metric
 }
 
 export function getVectorSizeSquared(vector: [number, number, number, number], metricData: MetricData): number {
-  const tensor = metric(metricData)
-  return vector.reduce((total, v, i) => total + (Math.pow(v, 2) * tensor[i]), 0)
+  const tensor = metricData.kerr ? kerrMetric(metricData) : schwarzschildMetric(metricData)
+  let total = 0
+  vector.forEach((vecA, a) =>
+    vector.forEach((vecB, b) =>
+      total += (tensor[a][b] * vecA * vecB)
+    )
+  )
+
+  return total
 }
 
 export function getVectorSize(vector: [number, number, number, number], metricData: MetricData): number {
@@ -20,8 +53,13 @@ export function getVectorSize(vector: [number, number, number, number], metricDa
 }
 
 export function getTimeVelocity(vector: [number, number, number], metricData: MetricData): number {
-  const tensor = metric(metricData)
-  const spatialSizeSquared = vector.reduce((total, v, i) => total + Math.pow(v, 2) * tensor[i + 1])
+  const tensor = metricData.kerr ? kerrMetric(metricData) : schwarzschildMetric(metricData)
+  let spatialSizeSquared = 0
+  vector.forEach((vecA, a) =>
+    vector.forEach((vecB, b) =>
+      spatialSizeSquared += (tensor[a + 1][b + 1] * vecA * vecB)
+    )
+  )
 
-  return Math.sqrt((1 - spatialSizeSquared) / tensor[0])
+  return Math.sqrt((1 - spatialSizeSquared) / tensor[0][0])
 }
