@@ -52,14 +52,23 @@ export function getVectorSize(vector: [number, number, number, number], metricDa
   return Math.sqrt(squared)
 }
 
-export function getTimeVelocity(vector: [number, number, number], metricData: MetricData): number {
+export function getTimeVelocity(vector: [number, number, number], metricData: MetricData): [number, number] {
   const tensor = metricData.kerr ? kerrMetric(metricData) : schwarzschildMetric(metricData)
-  let spatialSizeSquared = 0
+  let spatialSum = 0
   vector.forEach((vecA, a) =>
     vector.forEach((vecB, b) =>
-      spatialSizeSquared += (tensor[a + 1][b + 1] * vecA * vecB)
+      spatialSum += (tensor[a + 1][b + 1] * vecA * vecB)
     )
   )
 
-  return Math.sqrt((1 - spatialSizeSquared) / tensor[0][0])
+  // U^a g_{ta}
+  const gtaSum = vector.reduce((total, value, i) =>
+    total + value * tensor[0][i + 1]
+    , 0)
+
+  const sqrtD = Math.sqrt(Math.pow(gtaSum, 2) - tensor[0][0] * (spatialSum - 1))
+  return [
+    (-gtaSum + sqrtD) / tensor[0][0],
+    (-gtaSum - sqrtD) / tensor[0][0],
+  ]
 }

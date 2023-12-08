@@ -28,7 +28,7 @@ export function useMass(initialValue: number): {
 function velocityToGeometrized(value: number): number {
   return value / c
 }
-//
+
 // also applies to angular velocity
 export function velocityToSI(value: number): number {
   return value * c
@@ -148,6 +148,22 @@ export function useCoordinate(initialValue: number, state: State): {
     setInitialCoordinate,
     coordinate,
     setCoordinate,
+  }
+}
+
+function angularMomentumToGeometrized(value: number): number {
+  const factor = Math.pow(c, 3) * Math.pow(G, -1)
+  return value / factor
+}
+
+export function useAngularMomentum(initialValue: number) {
+  const [angularMomentum, setAngularMomentum] = useState(initialValue)
+  const angularMomentumGeometrized = useMemo(() => angularMomentumToGeometrized(angularMomentum), [angularMomentum])
+
+  return {
+    angularMomentum,
+    setAngularMomentum,
+    angularMomentumGeometrized
   }
 }
 

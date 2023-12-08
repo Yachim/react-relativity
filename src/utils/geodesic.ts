@@ -59,9 +59,6 @@ function kerrChristoffel({ rs, r, theta, a }: KerrChristoffelData): number[][][]
     )
   )
 
-  //const rMinusRs = r - rs
-  //const rsMinusR = rs - r
-
   const sigma = Math.pow(r, 2) + Math.pow(a * Math.cos(theta), 2)
   const delta = Math.pow(r, 2) - rs * r + Math.pow(a, 2)
 
@@ -93,8 +90,8 @@ function kerrChristoffel({ rs, r, theta, a }: KerrChristoffelData): number[][][]
   christoffel[2][2][2] = -(Math.pow(a, 2) * sinTheta * cosTheta) / sigma
   christoffel[0][2][3] = (rs * Math.pow(a, 3) * r * Math.pow(sinTheta, 3) * cosTheta) / Math.pow(sigma, 2)
 
-  christoffel[0][1][3] = rs * a * Math.pow(sinTheta, 2) * (aCosTheta2 * (Math.pow(a, 2) - Math.pow(r, 2)) - Math.pow(r, 2) * (Math.pow(a, 2) + 3 * Math.pow(r, 2))) / 2 * Math.pow(sigma, 2) * delta
-  christoffel[3][1][3] = (2 * r * Math.pow(sigma, 2) + rs * (Math.pow(a, 4) * Math.pow(sinTheta, 2) * Math.pow(cosTheta, 2) - Math.pow(r, 2) * (sigma + Math.pow(r, 2) + Math.pow(a, 2)))) / 2 * Math.pow(sigma, 2) * delta
+  christoffel[0][1][3] = rs * a * Math.pow(sinTheta, 2) * (aCosTheta2 * (Math.pow(a, 2) - Math.pow(r, 2)) - Math.pow(r, 2) * (Math.pow(a, 2) + 3 * Math.pow(r, 2))) / (2 * Math.pow(sigma, 2) * delta)
+  christoffel[3][1][3] = (2 * r * Math.pow(sigma, 2) + rs * (Math.pow(a, 4) * Math.pow(sinTheta, 2) * Math.pow(cosTheta, 2) - Math.pow(r, 2) * (sigma + Math.pow(r, 2) + Math.pow(a, 2)))) / (2 * Math.pow(sigma, 2) * delta)
   christoffel[1][3][3] = delta * Math.pow(sinTheta, 2) / (2 * Math.pow(sigma, 3)) * (-2 * r * Math.pow(sigma, 2) + rs * aSinTheta2 * (Math.pow(r, 2) - aCosTheta2))
   christoffel[2][3][3] = -sinTheta * cosTheta / Math.pow(sigma, 3) * (A * sigma + (Math.pow(r, 2) + Math.pow(a, 2)) * rs * r * aSinTheta2)
 

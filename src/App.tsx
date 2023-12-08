@@ -5,7 +5,7 @@ import { OrbitControls } from "three/examples/jsm/Addons.js"
 import * as THREE from "three"
 import { BlockMath, InlineMath } from "react-katex"
 import { getTimeVelocity, getVectorSize } from "./utils/metric"
-import { State, useAngularVelocity, useCoordinate, useMass, useTimeVelocity, useVelocity, velocityToSI } from "./utils/units"
+import { State, useAngularMomentum, useAngularVelocity, useCoordinate, useMass, useTimeVelocity, useVelocity, velocityToSI } from "./utils/units"
 import { useFrequency } from "./utils/utils"
 import { nextCoordinates, nextVelocities } from "./utils/geodesic"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
@@ -281,6 +281,7 @@ const presets: {
 //  - omega: angular velocity
 //  - r: radius/distance
 export default function App() {
+  const [kerr, setKerr] = useState(false)
   const {
     solarMass: bhWeight,
     setSolarMass: setBhWeight,
@@ -289,6 +290,12 @@ export default function App() {
   const schwarzschildRadius = useMemo(() => bhWeightGeometrized * 2, [bhWeightGeometrized])
   const [bhRadius, setBhRadius] = useState(1)
   const [bhColor, setBhColor] = useState("#505050")
+  const {
+    angularMomentum: bhAngularMomentum,
+    setAngularMomentum: setBhAngularMomentum,
+    angularMomentumGeometrized: bhAngularMomentumGeometrized,
+  } = useAngularMomentum(0)
+  const a = useMemo(() => bhAngularMomentumGeometrized / bhWeight, [bhAngularMomentumGeometrized, bhWeight])
 
   useEffect(() => {
     if (bhRadius < schwarzschildRadius) setBhRadius(schwarzschildRadius)
@@ -379,7 +386,9 @@ export default function App() {
   ], {
     r: initialOrbitingDistance,
     rs: schwarzschildRadius,
-    theta: initialOrbitingTheta
+    theta: initialOrbitingTheta,
+    kerr,
+    a,
   }), [
     initialOrbitingTimeVelocity,
     initialOrbitingDistanceVelocity,
@@ -387,7 +396,9 @@ export default function App() {
     initialOrbitingPhiAngularVelocity,
     initialOrbitingDistance,
     schwarzschildRadius,
-    initialOrbitingTheta
+    initialOrbitingTheta,
+    kerr,
+    a,
   ])
 
   useEffect(() => {
@@ -399,8 +410,10 @@ export default function App() {
     ], {
       r: initialOrbitingDistance,
       rs: schwarzschildRadius,
-      theta: initialOrbitingTheta
-    }))
+      theta: initialOrbitingTheta,
+      kerr,
+      a,
+    })[0])
   }, [
     playState,
     initialOrbitingDistanceVelocity,
@@ -409,7 +422,9 @@ export default function App() {
     initialOrbitingDistance,
     schwarzschildRadius,
     initialOrbitingTheta,
-    setInitialOrbitingTimeVelocity
+    setInitialOrbitingTimeVelocity,
+    kerr,
+    a,
   ])
 
   // FIXME: nan
@@ -421,7 +436,9 @@ export default function App() {
   ], {
     r: orbitingDistance,
     rs: schwarzschildRadius,
-    theta: orbitingTheta
+    theta: orbitingTheta,
+    kerr,
+    a,
   }), [
     orbitingTimeVelocity,
     orbitingDistanceVelocity,
@@ -429,7 +446,9 @@ export default function App() {
     orbitingPhiAngularVelocity,
     orbitingDistance,
     schwarzschildRadius,
-    orbitingTheta
+    orbitingTheta,
+    kerr,
+    a,
   ])
 
   const [panelVisible, setPanelVisible] = useState<"none" | "math" | "inputs" | "values" | "presets">("none")
@@ -471,6 +490,8 @@ export default function App() {
         rs: schwarzschildRadius,
         r: orbitingDistance,
         theta: orbitingTheta,
+        kerr,
+        a,
       },
       scaledPeriod,
       iterationCnt,
@@ -503,7 +524,9 @@ export default function App() {
     setOrbitingPhiGeometrizedAngularVelocity,
     setOrbitingTheta,
     setOrbitingThetaGeometrizedAngularVelocity,
-    setOrbitingTimeVelocity
+    setOrbitingTimeVelocity,
+    kerr,
+    a,
   ])
 
   const stepMore = useCallback(() => {
@@ -669,6 +692,9 @@ export default function App() {
             <h3>Velocity, including angular velocity</h3>
             <BlockMath math="u_g = \frac{u_{si}}{c}" />
 
+            <h3>Angular momentum</h3>
+            <BlockMath math="J_g = \frac{J_{si}}{c^3 G^{-1}}" />
+
             <hr />
 
             <h2>Metric and sign convention</h2>
@@ -724,6 +750,17 @@ export default function App() {
         }
         {panelVisible === "inputs" &&
           <div className="p-4 bg-opacity-80 bg-gray-400 flex flex-col gap-2 overflow-y-auto">
+            <label>
+              Metric:
+              <select value={kerr ? "k" : "s"} onChange={e => {
+                if (e.target.value === "k") setKerr(true)
+                else setKerr(false)
+              }}>
+                <option value="s">Schwarzschild</option>
+                <option value="k">Kerr</option>
+              </select>
+            </label>
+
             <h2>Massive body</h2>
             <label>
               Weight:
@@ -740,6 +777,13 @@ export default function App() {
               Color:
               <input type="color" value={bhColor} onChange={e => setBhColor(e.target.value)} />
             </label>
+            {kerr &&
+              <label>
+                Angular momentum:
+                <input type="number" value={bhAngularMomentum} onChange={e => setBhAngularMomentum(+e.target.value)} />
+                <InlineMath math="kg\ m^2\ s^{-1}" />
+              </label>
+            }
 
             <hr />
 
@@ -801,17 +845,17 @@ export default function App() {
             <label>
               Distance:
               <input type="number" value={initialOrbitingDistanceVelocity} onChange={e => setInitialOrbitingDistanceVelocity(+e.target.value)} />
-              <InlineMath math="ms^{-1}" />
+              <InlineMath math="m\ s^{-1}" />
             </label>
             <label>
               Theta:
               <input type="number" value={initialOrbitingThetaVelocity} onChange={e => setInitialOrbitingThetaVelocity(+e.target.value)} />
-              <InlineMath math="ms^{-1}" />
+              <InlineMath math="m\ s^{-1}" />
             </label>
             <label>
               Phi:
               <input type="number" value={initialOrbitingPhiVelocity} onChange={e => setInitialOrbitingPhiVelocity(+e.target.value)} />
-              <InlineMath math="ms^{-1}" />
+              <InlineMath math="m\ s^{-1}" />
             </label>
           </div>
         }
@@ -825,11 +869,11 @@ export default function App() {
             <br />
 
             <InlineMath math={`U_0^t = ${initialOrbitingTimeVelocity}`} />
-            <InlineMath math={String.raw`U_0^r = ${initialOrbitingDistanceVelocity}\ ms^{-1} = ${initialOrbitingDistanceGeometrizedVelocity}\ c`} />
-            <InlineMath math={String.raw`U_0^{\theta} = ${initialOrbitingThetaVelocity}\ ms^{-1} = ${initialOrbitingThetaGeometrizedVelocity}\ c\ \hat{=}\ ${initialOrbitingThetaAngularVelocity}\ s^{-1} = ${initialOrbitingThetaGeometrizedAngularVelocity}\ c`} />
-            <InlineMath math={String.raw`U_0^{\phi} = ${initialOrbitingPhiVelocity}\ ms^{-1} = ${initialOrbitingPhiGeometrizedVelocity}\ c\ \hat{=}\ ${initialOrbitingPhiAngularVelocity}\ s^{-1} = ${initialOrbitingPhiGeometrizedAngularVelocity}\ c`} />
+            <InlineMath math={String.raw`U_0^r = ${initialOrbitingDistanceVelocity}\ m\ s^{-1} = ${initialOrbitingDistanceGeometrizedVelocity}\ c`} />
+            <InlineMath math={String.raw`U_0^{\theta} = ${initialOrbitingThetaVelocity}\ m\ s^{-1} = ${initialOrbitingThetaGeometrizedVelocity}\ c\ \hat{=}\ ${initialOrbitingThetaAngularVelocity}\ s^{-1} = ${initialOrbitingThetaGeometrizedAngularVelocity}\ c`} />
+            <InlineMath math={String.raw`U_0^{\phi} = ${initialOrbitingPhiVelocity}\ m\ s^{-1} = ${initialOrbitingPhiGeometrizedVelocity}\ c\ \hat{=}\ ${initialOrbitingPhiAngularVelocity}\ s^{-1} = ${initialOrbitingPhiGeometrizedAngularVelocity}\ c`} />
 
-            <InlineMath math={String.raw`|U_0| = \sqrt{(U^a)^2 g_{aa}} = ${velocityToSI(initialOrbitingVelocitySize)}\ ms^{-1} = ${initialOrbitingVelocitySize}\ c`} />
+            <InlineMath math={String.raw`|U_0| = \sqrt{(U^a)^2 g_{aa}} = ${velocityToSI(initialOrbitingVelocitySize)}\ m\ s^{-1} = ${initialOrbitingVelocitySize}\ c`} />
             {initialOrbitingVelocitySize > 1 && <p className="text-red-600">Warning: <InlineMath math={`|U_0| > c`} /></p>}
 
             <hr />
@@ -842,11 +886,11 @@ export default function App() {
             <br />
 
             <InlineMath math={`U^t = ${orbitingTimeVelocity}`} />
-            <InlineMath math={String.raw`U^r = ${orbitingDistanceVelocity}\ ms^{-1} = ${orbitingDistanceGeometrizedVelocity}\ c`} />
-            <InlineMath math={String.raw`U^{\theta} = ${orbitingThetaVelocity}\ ms^{-1} = ${orbitingThetaGeometrizedVelocity}\ c\ \hat{=}\ ${orbitingThetaAngularVelocity}\ s^{-1} = ${orbitingThetaGeometrizedAngularVelocity}\ c`} />
-            <InlineMath math={String.raw`U^{\phi} = ${orbitingPhiVelocity}\ ms^{-1} = ${orbitingPhiGeometrizedVelocity}\ c\ \hat{=}\ ${orbitingPhiAngularVelocity}\ s^{-1} = ${orbitingPhiGeometrizedAngularVelocity}\ c`} />
+            <InlineMath math={String.raw`U^r = ${orbitingDistanceVelocity}\ m\ s^{-1} = ${orbitingDistanceGeometrizedVelocity}\ c`} />
+            <InlineMath math={String.raw`U^{\theta} = ${orbitingThetaVelocity}\ m\ s^{-1} = ${orbitingThetaGeometrizedVelocity}\ c\ \hat{=}\ ${orbitingThetaAngularVelocity}\ s^{-1} = ${orbitingThetaGeometrizedAngularVelocity}\ c`} />
+            <InlineMath math={String.raw`U^{\phi} = ${orbitingPhiVelocity}\ m\ s^{-1} = ${orbitingPhiGeometrizedVelocity}\ c\ \hat{=}\ ${orbitingPhiAngularVelocity}\ s^{-1} = ${orbitingPhiGeometrizedAngularVelocity}\ c`} />
 
-            <InlineMath math={String.raw`|U| = \sqrt{(U^a)^2 g_{aa}} = ${velocityToSI(orbitingVelocitySize)}\ ms^{-1} = ${orbitingVelocitySize}\ c`} />
+            <InlineMath math={String.raw`|U| = \sqrt{(U^a)^2 g_{aa}} = ${velocityToSI(orbitingVelocitySize)}\ m\ s^{-1} = ${orbitingVelocitySize}\ c`} />
             {orbitingVelocitySize > 1 && <p className="text-red-600">Warning: <InlineMath math={`|U| > c`} /></p>}
           </div>
         }
